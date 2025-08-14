@@ -35,7 +35,7 @@ This script is designed for **Debian/Ubuntu** based systems. It will automatical
 
 1.  **Clone the repository** (or download the script):
     ```bash
-    git clone [https://github.com/manzolo/linux-builder.git](https://github.com/manzolo/linux-builder.git)
+    git clone https://github.com/manzolo/linux-builder.git
     cd linux-builder
     ```
 
