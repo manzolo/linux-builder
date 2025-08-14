@@ -67,7 +67,7 @@ The script automates the manual process of building a Linux system:
 
 ## ⚙️ Customization
 
-You can easily customize the project by changing the `KERNEL_VERSION` and `BUSYBOX_VERSION` variables at the beginning of the script.
+You can easily customize the project by changing the `KERNEL_VERSION` and `BUSYBOX_VERSION` variables at the beginning of the config.sh script.
 
 ## 📄 License
 
