@@ -569,6 +569,579 @@ show_stats() {
     fi
 }
 
+# =============================================================================
+# 🚀 MANZOLO LINUX BUILDER - ADVANCED FEATURES MODULE
+# =============================================================================
+# Funzionalità avanzate da integrare nello script principale
+# =============================================================================
+
+# 🧩 Sistema di Moduli Personalizzabili
+configure_modules() {
+    print_header "Configure Additional Software Modules"
+    
+    local MODULES_CONFIG="$BUILD_DIR/modules.conf"
+    
+    # Inizializza file configurazione moduli se non esiste
+    if [ ! -f "$MODULES_CONFIG" ]; then
+        cat << 'EOF' > "$MODULES_CONFIG"
+# Manzolo Linux - Modules Configuration
+# Format: PACKAGE_NAME=enabled/disabled
+
+# Text Editors
+NANO=disabled
+VIM=disabled
+
+# Network Tools  
+WGET=enabled
+CURL=disabled
+SSH_CLIENT=disabled
+RSYNC=disabled
+
+# Development Tools
+GCC=disabled
+MAKE=disabled
+GIT=disabled
+PYTHON3=disabled
+
+# System Monitoring
+HTOP=disabled
+IOTOP=disabled
+STRACE=disabled
+
+# File Management
+MIDNIGHT_COMMANDER=disabled
+TREE=disabled
+
+# Compression Tools
+ZIP=disabled
+UNRAR=disabled
+
+# Network Services
+DROPBEAR_SSH=disabled
+HTTPD=disabled
+EOF
+    fi
+    
+    while true; do
+        clear
+        print_header "Software Modules Configuration"
+        
+        echo -e "${BLUE}Current module status:${NC}"
+        echo
+        
+        # Mostra stato attuale dei moduli
+        while IFS='=' read -r module status; do
+            if [[ ! $module =~ ^#.*$ ]] && [[ -n $module ]]; then
+                if [ "$status" = "enabled" ]; then
+                    echo -e "  ${GREEN}✅ $module${NC}"
+                else
+                    echo -e "  ${RED}❌ $module${NC}"
+                fi
+            fi
+        done < "$MODULES_CONFIG"
+        
+        echo
+        echo "1. 📝 Edit modules configuration"
+        echo "2. 🔄 Reset to defaults"
+        echo "3. ⬅️  Return to main menu"
+        echo
+        
+        read -rp "$(echo -e "${CYAN}Select option: ${NC}")" choice
+        
+        case $choice in
+            1)
+                if command -v nano &> /dev/null; then
+                    nano "$MODULES_CONFIG"
+                else
+                    print_warning "nano not found. Edit manually: $MODULES_CONFIG"
+                    read -p "Press ENTER when done..."
+                fi
+                ;;
+            2)
+                rm "$MODULES_CONFIG"
+                configure_modules
+                return
+                ;;
+            3)
+                break
+                ;;
+        esac
+    done
+}
+
+# 🎯 Kernel Configuration Presets
+configure_kernel_preset() {
+    print_header "Kernel Configuration Presets"
+    
+    local PRESET_DIR="$BUILD_DIR/kernel_presets"
+    mkdir -p "$PRESET_DIR"
+    
+    cat << 'EOF'
+    ╔═══════════════════════════════════════════════════════════════╗
+    ║                    KERNEL CONFIGURATION PRESETS               ║
+    ╚═══════════════════════════════════════════════════════════════╝
+    
+    Choose a kernel configuration preset optimized for your use case:
+    
+    1. 🔬 Minimal        - Bare minimum kernel (embedded systems)
+    2. 🖥️  Desktop       - Full desktop support (graphics, audio, USB)  
+    3. 🖧 Server        - Network-focused (no graphics, server features)
+    4. 👨‍💻 Development   - Debug tools and development features
+    5. 🎮 Gaming        - Performance-optimized configuration
+    6. 🔧 Custom        - Manual configuration (current behavior)
+    7. ⬅️  Return       - Back to main menu
+EOF
+    
+    read -rp "$(echo -e "${CYAN}Select preset (1-7): ${NC}")" preset_choice
+    
+    case $preset_choice in
+        1) apply_minimal_preset ;;
+        2) apply_desktop_preset ;;
+        3) apply_server_preset ;;
+        4) apply_development_preset ;;
+        5) apply_gaming_preset ;;
+        6) 
+            print_info "Using custom configuration (manual menuconfig)"
+            return 0
+            ;;
+        7) return 0 ;;
+        *)
+            print_error "Invalid option"
+            return 1
+            ;;
+    esac
+}
+
+# Preset implementations
+apply_minimal_preset() {
+    print_step "Applying minimal kernel preset..."
+    
+    cat << 'EOF' > "$BUILD_DIR/kernel_minimal.config"
+# Minimal kernel configuration
+CONFIG_64BIT=y
+CONFIG_X86_64=y
+CONFIG_SMP=n
+CONFIG_MODULES=n
+CONFIG_BLOCK=y
+CONFIG_TTY=y
+CONFIG_SERIAL_8250=y
+CONFIG_SERIAL_8250_CONSOLE=y
+CONFIG_EXT4_FS=y
+CONFIG_PROC_FS=y
+CONFIG_SYSFS=y
+CONFIG_DEVTMPFS=y
+CONFIG_PRINTK=y
+# Disable graphics
+CONFIG_VT=n
+CONFIG_DRM=n
+CONFIG_FB=n
+# Disable audio  
+CONFIG_SND=n
+# Disable USB
+CONFIG_USB=n
+# Disable networking
+CONFIG_NET=n
+EOF
+    print_success "Minimal preset configured!"
+}
+
+apply_desktop_preset() {
+    print_step "Applying desktop kernel preset..."
+    
+    cat << 'EOF' > "$BUILD_DIR/kernel_desktop.config"
+# Desktop kernel configuration
+CONFIG_64BIT=y
+CONFIG_X86_64=y
+CONFIG_SMP=y
+CONFIG_MODULES=y
+# Graphics support
+CONFIG_DRM=y
+CONFIG_DRM_I915=y
+CONFIG_DRM_RADEON=y
+CONFIG_DRM_AMDGPU=y
+CONFIG_FB=y
+CONFIG_FB_VESA=y
+# Audio support
+CONFIG_SND=y
+CONFIG_SND_HDA_INTEL=y
+CONFIG_SND_USB_AUDIO=y
+# USB support
+CONFIG_USB=y
+CONFIG_USB_EHCI_HCD=y
+CONFIG_USB_OHCI_HCD=y
+CONFIG_USB_STORAGE=y
+# Network support
+CONFIG_NET=y
+CONFIG_ETHERNET=y
+CONFIG_WIRELESS=y
+CONFIG_WIFI=y
+# Filesystem support
+CONFIG_EXT4_FS=y
+CONFIG_NTFS_FS=y
+CONFIG_FAT_FS=y
+CONFIG_VFAT_FS=y
+EOF
+    print_success "Desktop preset configured!"
+}
+
+apply_server_preset() {
+    print_step "Applying server kernel preset..."
+    
+    cat << 'EOF' > "$BUILD_DIR/kernel_server.config"
+# Server kernel configuration  
+CONFIG_64BIT=y
+CONFIG_X86_64=y
+CONFIG_SMP=y
+CONFIG_MODULES=y
+# No graphics
+CONFIG_VT=n
+CONFIG_DRM=n
+CONFIG_FB=n
+# No audio
+CONFIG_SND=n
+# Advanced networking
+CONFIG_NET=y
+CONFIG_ETHERNET=y
+CONFIG_NETFILTER=y
+CONFIG_IP_NF_IPTABLES=y
+CONFIG_BRIDGE=y
+CONFIG_VLAN_8021Q=y
+CONFIG_BONDING=y
+# Server filesystems
+CONFIG_EXT4_FS=y
+CONFIG_XFS_FS=y
+CONFIG_BTRFS_FS=y
+CONFIG_NFS_FS=y
+CONFIG_NFS_V4=y
+# Virtualization
+CONFIG_KVM=y
+CONFIG_KVM_INTEL=y
+CONFIG_KVM_AMD=y
+EOF
+    print_success "Server preset configured!"
+}
+
+# 📋 Advanced Init System Templates  
+configure_init_templates() {
+    print_header "Advanced Init System Configuration"
+    
+    local INIT_TEMPLATES_DIR="$BUILD_DIR/init_templates"
+    mkdir -p "$INIT_TEMPLATES_DIR"
+    
+    cat << 'EOF'
+    ╔═══════════════════════════════════════════════════════════════╗
+    ║                    INIT SYSTEM TEMPLATES                      ║
+    ╚═══════════════════════════════════════════════════════════════╝
+    
+    Choose an initialization template for your system:
+    
+    1. 🏠 Home Server    - SSH, basic services, user accounts
+    2. 🖥️  Workstation   - GUI preparation, dev tools
+    3. 🔬 Laboratory    - Debug tools, monitoring, logging  
+    4. 🎓 Educational   - Interactive learning tools
+    5. 🔧 Custom        - Configure manually
+    6. ⬅️  Return       - Back to main menu
+EOF
+    
+    read -rp "$(echo -e "${CYAN}Select template (1-6): ${NC}")" template_choice
+    
+    case $template_choice in
+        1) create_server_init ;;
+        2) create_workstation_init ;;
+        3) create_lab_init ;;
+        4) create_educational_init ;;
+        5) create_custom_init ;;
+        6) return 0 ;;
+    esac
+}
+
+create_server_init() {
+    print_step "Creating home server init template..."
+    
+    cat << 'EOF' > "$INIT_TEMPLATES_DIR/server_init"
+#!/bin/sh
+# Manzolo Linux - Home Server Init
+
+echo "🏠 Manzolo Linux - Home Server Edition"
+echo "======================================"
+
+# Mount filesystems
+mount -t devtmpfs none /dev
+mount -t proc none /proc  
+mount -t sysfs none /sys
+mount -t tmpfs none /tmp
+
+# Network configuration
+echo "Configuring network..."
+ip link set lo up
+# Add DHCP client here if available
+
+# Create users
+echo "Setting up users..."
+echo "root:manzolo" | chpasswd 2>/dev/null || true
+
+# Start services
+echo "Starting services..."
+# Add SSH daemon here if compiled
+
+# Server info
+echo
+echo "📊 Server Status:"
+echo "Hostname: manzolo-server"  
+echo "Users: root"
+echo "Services: basic system"
+echo
+
+cat << 'SERVERWELCOME'
+╔══════════════════════════════════════════════════════════════╗
+║                🏠 MANZOLO HOME SERVER v1.0                   ║
+║                                                              ║
+║ Your home server is ready!                                   ║  
+║                                                              ║
+║ 🔧 Management commands:                                      ║
+║ • systemctl - service management                             ║
+║ • netstat - network connections                              ║
+║ • df - disk usage                                            ║
+║ • top - process monitor                                      ║
+╚══════════════════════════════════════════════════════════════╝
+SERVERWELCOME
+
+exec /bin/sh
+EOF
+    
+    print_success "Home server init template created!"
+}
+
+create_educational_init() {
+    print_step "Creating educational init template..."
+    
+    cat << 'EOF' > "$INIT_TEMPLATES_DIR/educational_init"  
+#!/bin/sh
+# Manzolo Linux - Educational Init
+
+echo "🎓 Manzolo Linux - Educational Edition"
+echo "======================================"
+
+# Mount filesystems
+mount -t devtmpfs none /dev
+mount -t proc none /proc  
+mount -t sysfs none /sys
+mount -t tmpfs none /tmp
+
+# Educational welcome
+cat << 'EDUWELCOME'
+╔══════════════════════════════════════════════════════════════╗
+║              🎓 WELCOME TO LINUX LEARNING LAB                ║
+║                                                              ║
+║ This is your personal Linux learning environment!           ║
+║                                                              ║
+║ 📚 Learning Commands:                                        ║
+║ • tutorial    - Start interactive Linux tutorial            ║
+║ • explain     - Explain any command                         ║
+║ • practice    - Practice exercises                          ║
+║ • quiz        - Test your knowledge                         ║
+║                                                              ║
+║ 🔍 System Exploration:                                       ║
+║ • /proc       - Kernel information                          ║
+║ • /sys        - System devices                              ║  
+║ • /dev        - Device files                                ║
+╚══════════════════════════════════════════════════════════════╝
+EDUWELCOME
+
+# Create learning aliases
+alias tutorial='echo "📚 Linux Tutorial: Start with basic commands like ls, cd, cat, grep"'
+alias explain='echo "💡 Usage: explain <command> - explains what a command does"'
+alias practice='echo "🏋️ Practice: Try creating files with touch, editing with vi"'
+alias quiz='echo "🧠 Quiz: What does ls -la show? What is the root directory?"'
+
+echo "Type 'help' for more learning resources!"
+echo
+exec /bin/sh
+EOF
+    
+    print_success "Educational init template created!"
+}
+
+# 🏗️ Multi-Architecture Support  
+configure_architecture() {
+    print_header "Multi-Architecture Support"
+    
+    cat << 'EOF'
+    ╔═══════════════════════════════════════════════════════════════╗
+    ║                    ARCHITECTURE SELECTION                     ║
+    ╚═══════════════════════════════════════════════════════════════╝
+    
+    Choose target architecture for your Linux distribution:
+    
+    1. 🖥️  x86_64       - Standard 64-bit PC (Intel/AMD)
+    2. 🍓 ARM64        - 64-bit ARM (Raspberry Pi 4, Apple M1)  
+    3. 📱 ARMv7        - 32-bit ARM (Raspberry Pi 2/3)
+    4. 🏛️  i386         - Legacy 32-bit x86
+    5. ⬅️  Return      - Back to main menu
+EOF
+    
+    read -rp "$(echo -e "${CYAN}Select architecture (1-5): ${NC}")" arch_choice
+    
+    case $arch_choice in
+        1) 
+            KERNEL_ARCH="x86_64"
+            QEMU_SYSTEM="qemu-system-x86_64"
+            CROSS_COMPILE=""
+            ;;
+        2)
+            KERNEL_ARCH="arm64" 
+            QEMU_SYSTEM="qemu-system-aarch64"
+            CROSS_COMPILE="aarch64-linux-gnu-"
+            install_cross_compiler "gcc-aarch64-linux-gnu"
+            ;;
+        3)
+            KERNEL_ARCH="arm"
+            QEMU_SYSTEM="qemu-system-arm"  
+            CROSS_COMPILE="arm-linux-gnueabihf-"
+            install_cross_compiler "gcc-arm-linux-gnueabihf"
+            ;;
+        4)
+            KERNEL_ARCH="i386"
+            QEMU_SYSTEM="qemu-system-i386"
+            CROSS_COMPILE=""
+            ;;
+        5) return 0 ;;
+    esac
+    
+    # Save architecture configuration
+    echo "KERNEL_ARCH=$KERNEL_ARCH" >> "$CONFIG_FILE"
+    echo "QEMU_SYSTEM=$QEMU_SYSTEM" >> "$CONFIG_FILE" 
+    echo "CROSS_COMPILE=$CROSS_COMPILE" >> "$CONFIG_FILE"
+    
+    print_success "Architecture $KERNEL_ARCH configured!"
+}
+
+install_cross_compiler() {
+    local compiler_package="$1"
+    
+    print_step "Checking cross-compiler: $compiler_package"
+    
+    if ! dpkg -l | grep -q "$compiler_package"; then
+        print_warning "Cross-compiler not found. Installing $compiler_package..."
+        sudo apt update && sudo apt install -y "$compiler_package"
+        print_success "Cross-compiler installed!"
+    else
+        print_success "Cross-compiler already available!"
+    fi
+}
+
+# 📦 Advanced Packaging System
+advanced_packaging() {
+    print_header "Advanced Packaging Options"
+    
+    cat << 'EOF'
+    ╔═══════════════════════════════════════════════════════════════╗
+    ║                    ADVANCED PACKAGING                         ║
+    ╚═══════════════════════════════════════════════════════════════╝
+    
+    Create different types of bootable media:
+    
+    1. 💿 Standard ISO      - Basic ISO image
+    2. 🔄 Live USB         - Create bootable USB automatically  
+    3. 📦 VM Image         - VirtualBox/VMware compatible
+    4. 🐳 Docker Image     - Containerized version
+    5. 💾 SD Card Image    - For ARM devices (Raspberry Pi)
+    6. ⬅️  Return          - Back to main menu
+EOF
+    
+    read -rp "$(echo -e "${CYAN}Select packaging option (1-6): ${NC}")" package_choice
+    
+    case $package_choice in
+        1) prepare_iso ;;
+        2) create_live_usb ;;
+        3) create_vm_image ;;
+        4) create_docker_image ;;
+        5) create_sdcard_image ;;
+        6) return 0 ;;
+    esac
+}
+
+create_live_usb() {
+    print_step "Creating Live USB..."
+    
+    # List USB devices
+    print_info "Available USB devices:"
+    lsblk -d -o NAME,SIZE,MODEL | grep -E "(sd[b-z]|nvme)"
+    
+    echo
+    print_warning "⚠️  This will ERASE all data on the selected device!"
+    read -rp "Enter USB device (e.g., /dev/sdb): " usb_device
+    
+    if [ ! -b "$usb_device" ]; then
+        print_error "Device $usb_device not found!"
+        return 1
+    fi
+    
+    # Verify ISO exists
+    if [ ! -f "$BUILD_DIR/manzolo-linux-v1.0.iso" ]; then
+        print_error "ISO file not found! Create ISO first."
+        return 1
+    fi
+    
+    print_step "Writing ISO to $usb_device..."
+    if sudo dd if="$BUILD_DIR/manzolo-linux-v1.0.iso" of="$usb_device" bs=4M status=progress; then
+        sudo sync
+        print_success "Live USB created successfully!"
+        print_info "You can now boot from $usb_device"
+    else
+        print_error "Failed to create Live USB!"
+        return 1
+    fi
+}
+
+create_vm_image() {
+    print_step "Creating VM-compatible image..."
+    
+    # Create VDI for VirtualBox
+    if command -v VBoxManage &> /dev/null; then
+        print_step "Creating VirtualBox VDI..."
+        VBoxManage convertfromraw --format VDI "$BUILD_DIR/manzolo-linux-v1.0.iso" "$BUILD_DIR/manzolo-linux.vdi"
+        print_success "VirtualBox VDI created: $BUILD_DIR/manzolo-linux.vdi"
+    fi
+    
+    # Create VMDK for VMware  
+    if command -v qemu-img &> /dev/null; then
+        print_step "Creating VMware VMDK..."
+        qemu-img convert -f raw -O vmdk "$BUILD_DIR/manzolo-linux-v1.0.iso" "$BUILD_DIR/manzolo-linux.vmdk"
+        print_success "VMware VMDK created: $BUILD_DIR/manzolo-linux.vmdk"
+    fi
+}
+
+# 🔧 Configuration Management
+save_build_config() {
+    local CONFIG_EXPORT="$BUILD_DIR/manzolo-build-config.txt"
+    
+    print_step "Saving build configuration..."
+    
+    cat << EOF > "$CONFIG_EXPORT"
+# Manzolo Linux Build Configuration
+# Generated on $(date)
+
+KERNEL_VERSION=$KERNEL_VERSION
+BUSYBOX_VERSION=$BUSYBOX_VERSION  
+KERNEL_ARCH=${KERNEL_ARCH:-x86_64}
+CROSS_COMPILE=${CROSS_COMPILE:-}
+BUILD_DATE=$(date)
+BUILD_HOST=$(hostname)
+BUILD_USER=$(whoami)
+
+# Modules Configuration
+$(cat "$BUILD_DIR/modules.conf" 2>/dev/null || echo "# No modules configured")
+
+# Build Statistics  
+KERNEL_SIZE=$(du -h "$BUILD_DIR/bzImage" 2>/dev/null | cut -f1 || echo "N/A")
+INITRAMFS_SIZE=$(du -h "$BUILD_DIR/initramfs.cpio.gz" 2>/dev/null | cut -f1 || echo "N/A")
+ISO_SIZE=$(du -h "$BUILD_DIR/manzolo-linux-v1.0.iso" 2>/dev/null | cut -f1 || echo "N/A")
+EOF
+    
+    print_success "Build configuration saved to $CONFIG_EXPORT"
+}
+
 # 🎯 Improved main menu
 show_menu() {
     clear
@@ -593,7 +1166,17 @@ show_menu() {
     │  7. 🧹 Complete cleanup                                     │
     │  8. ℹ️  Project information                                  │
     │  9. ⚙️  Configure versions                                   │
-    │ 10. ❌ Exit                                                 │
+    └─────────────────────────────────────────────────────────────┘
+
+    🚀 ADVANCED FEATURES:
+    ┌─────────────────────────────────────────────────────────────┐
+    │ 10. 🧩 Configure software modules                           │
+    │ 11. 🎯 Kernel configuration presets                         │
+    │ 12. 📋 Advanced init system templates                       │
+    │ 13. 🏗️  Multi-architecture support                          │
+    │ 14. 📦 Advanced packaging options                           │
+    │ 15. 🔧 Save build configuration                             │
+    │ 16. ❌ Exit                                                 │
     └─────────────────────────────────────────────────────────────┘
 
 EOF
@@ -625,11 +1208,17 @@ main() {
             7) cleanup_all ;;
             8) show_info ;;
             9) configure_versions ;;
-            10)
+            10) configure_modules ;;
+            11) configure_kernel_preset ;;
+            12) configure_init_templates ;;
+            13) configure_architecture ;;
+            14) advanced_packaging ;;
+            15) save_build_config ;;
+            16)
                 print_success "Thanks for using Manzolo Linux Builder! 🐧"
                 exit 0 ;;
             *)
-                print_error "Invalid option. Please choose a number from 1 to 10."
+                print_error "Invalid option. Please choose a number from 1 to 16."
                 read -p "Press ENTER to continue..."
                 ;;
         esac
