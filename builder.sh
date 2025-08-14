@@ -73,9 +73,11 @@ configure_versions() {
         ╔═══════════════════════════════════════════════════════════════╗
         ║                      VERSION CONFIGURATION                    ║
         ╚═══════════════════════════════════════════════════════════════╝
-        
-        Current Kernel Version:  ${YELLOW}${KERNEL_VERSION}${NC}
-        Current BusyBox Version: ${YELLOW}${BUSYBOX_VERSION}${NC}
+EOF
+        echo -e "        Current Kernel Version:  ${YELLOW}${KERNEL_VERSION}${NC}"
+        echo -e "        Current BusyBox Version: ${YELLOW}${BUSYBOX_VERSION}${NC}"
+
+        cat << EOF
 
         Choose an option to change a version or return to the main menu.
 
