@@ -78,25 +78,34 @@ This project is licensed under the MIT License.
 This script is inspired by and based on the guide from ThyCrow:
 [Compiling the Linux Kernel and Creating a Bootable ISO from it](https://medium.com/@ThyCrow/compiling-the-linux-kernel-and-creating-a-bootable-iso-from-it-6afb8d23ba22)
 
-## Screenshot
-<img width="804" height="459" alt="immagine" src="https://github.com/user-attachments/assets/5b9e3140-7cad-4ac4-b9bf-42b9c1b533ea" />
+## 📸 Screenshots
 
-<img width="804" height="459" alt="immagine" src="https://github.com/user-attachments/assets/b02f6b14-2e2c-457a-a7ca-73530731e6af" />
+These images show the key steps of the compilation process and the final result.
 
-<img width="810" height="453" alt="immagine" src="https://github.com/user-attachments/assets/4caf29fc-22ac-4912-ae7a-c598cb305042" />
+### Main Menu
+The initial screen showing all available options.
+<img width="810" height="453" alt="Main Menu" src="https://github.com/user-attachments/assets/5b9e3140-7cad-4ac4-b9bf-42b9c1b533ea" />
+<img width="804" height="459" alt="Main Menu 2" src="https://github.com/user-attachments/assets/b02f6b14-2e2c-457a-a7ca-73530731e6af" />
 
-<img width="804" height="459" alt="immagine" src="https://github.com/user-attachments/assets/200e51ae-1660-4ba5-92cf-d75f6ee91ab7" />
+### Kernel Configuration
+The kernel configuration menu, where you can customize options.
+<img width="810" height="453" alt="Kernel Configuration" src="https://github.com/user-attachments/assets/4caf29fc-22ac-4912-ae7a-c598cb305042" />
+<img width="804" height="459" alt="Kernel Configuration 2" src="https://github.com/user-attachments/assets/bd4d0177-ddf3-4c1a-9da7-f81d85412d71" />
+<img width="804" height="459" alt="Kernel Configuration 3" src="https://github.com/user-attachments/assets/80ea9c55-2805-479d-92ec-45f61106fee1" />
+<img width="804" height="459" alt="Kernel Configuration 4" src="https://github.com/user-attachments/assets/200e51ae-1660-4ba5-92cf-d75f6ee91ab7" />
+<img width="804" height="459" alt="Kernel Configuration 5" src="https://github.com/user-attachments/assets/6f5c1824-71df-4ce2-b416-e40baf28201f" />
 
-<img width="804" height="459" alt="immagine" src="https://github.com/user-attachments/assets/bd4d0177-ddf3-4c1a-9da7-f81d85412d71" />
-<img width="804" height="459" alt="immagine" src="https://github.com/user-attachments/assets/80ea9c55-2805-479d-92ec-45f61106fee1" />
-<img width="804" height="459" alt="immagine" src="https://github.com/user-attachments/assets/6f5c1824-71df-4ce2-b416-e40baf28201f" />
-<img width="804" height="459" alt="immagine" src="https://github.com/user-attachments/assets/5065e67a-873d-42f9-97c1-af69448f8f2c" />
-<img width="804" height="459" alt="immagine" src="https://github.com/user-attachments/assets/64975e82-f6a5-4419-957a-fcfea5701063" />
-<img width="719" height="514" alt="immagine" src="https://github.com/user-attachments/assets/aa33fbfd-a98b-464d-a26d-b275b8135770" />
-<img width="810" height="453" alt="immagine" src="https://github.com/user-attachments/assets/9e2abbe7-ce28-4bc8-a9e6-c93cf20429b1" />
-<img width="810" height="453" alt="immagine" src="https://github.com/user-attachments/assets/3292aecc-17b6-4af0-9a2e-9ebce94123da" />
+### BusyBox Compilation
+The BusyBox compilation output, which creates a minimal filesystem.
+<img width="804" height="459" alt="BusyBox" src="https://github.com/user-attachments/assets/5065e67a-873d-42f9-97c1-af69448f8f2c" />
 
+### Booting with QEMU
+The system booted with the QEMU emulator.
+<img width="719" height="514" alt="Qemu" src="https://github.com/user-attachments/assets/aa33fbfd-a98b-464d-a26d-b275b8135770" />
 
+### Bootable ISO
+The GRUB bootloader of the final ISO image.
+<img width="810" height="453" alt="Grub" src="https://github.com/user-attachments/assets/9e2abbe7-ce28-4bc8-a9e6-c93cf20429b1" />
 
-
-
+### Statistics
+<img width="810" height="453" alt="Statistics" src="https://github.com/user-attachments/assets/3292aecc-17b6-4af0-9a2e-9ebce94123da" />
