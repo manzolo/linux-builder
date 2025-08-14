@@ -173,7 +173,7 @@ busybox_menu() {
         5. 📦 Generate Initramfs
         6. 📊 BusyBox Information
         7. 🧹 Clean BusyBox Build
-        E. ⬅️  Return to Main Menu
+        8. ⬅️  Return to Main Menu
         
 EOF
         
@@ -187,7 +187,7 @@ EOF
             5) generate_initramfs ;;
             6) show_busybox_info ;;
             7) clean_busybox ;;
-            [eE]) break ;;
+            8) break ;;
             *) 
                 print_error "Invalid option"
                 read -p "Press ENTER to continue..."
