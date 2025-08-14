@@ -177,7 +177,7 @@ busybox_menu() {
         
 EOF
         
-        read -rp "$(echo -e "${CYAN}Select option [1-7, E]: ${NC}")" choice
+        read -rp "$(echo -e "${CYAN}Select option [1-8]: ${NC}")" choice
         
         case $choice in
             1) prepare_busybox ;;
@@ -357,7 +357,7 @@ EOF
 system_info_menu() {
     clear
     print_header "System Information"
-
+    
     print_section "Build Environment"
     echo "Host: $(hostname)"
     echo "User: $(whoami)"
@@ -365,35 +365,57 @@ system_info_menu() {
     echo "Architecture: $(uname -m)"
     echo "CPU Cores: $(nproc)"
     echo "Memory: $(free -h | awk '/^Mem:/ {print $2}')"
-
+    
     print_section "Compiler Information"
-    echo "GCC Version: $(gcc --version | head -1)"
-    echo "Make Version: $(make --version | head -1)"
-
+    echo "GCC Version: $(gcc --version 2>/dev/null | head -1 || echo "Not installed")"
+    echo "Make Version: $(make --version 2>/dev/null | head -1 || echo "Not installed")"
+    
     print_section "Build Status"
+    
+    # Check kernel
     if [[ -f "$BUILD_DIR/bzImage" ]]; then
         echo "✅ Kernel: $(du -h "$BUILD_DIR/bzImage" | cut -f1)"
     else
         echo "❌ Kernel: Not compiled"
     fi
-
+    
+    # Check initramfs
     if [[ -f "$BUILD_DIR/initramfs.cpio.gz" ]]; then
         echo "✅ Initramfs: $(du -h "$BUILD_DIR/initramfs.cpio.gz" | cut -f1)"
     else
         echo "❌ Initramfs: Not created"
     fi
-
-    if [[ -f "$BUILD_DIR"/*.iso ]]; then
-        echo "✅ ISO: $(du -h "$BUILD_DIR"/*.iso | cut -f1)"
+    
+    # Check ISO files - METODO CORRETTO
+    local iso_files=("$BUILD_DIR"/*.iso)
+    if [[ -f "${iso_files[0]}" ]]; then
+        # Se ci sono più file ISO, mostra il primo o tutti
+        if [[ ${#iso_files[@]} -eq 1 ]]; then
+            echo "✅ ISO: $(du -h "${iso_files[0]}" | cut -f1)"
+        else
+            echo "✅ ISO files found: ${#iso_files[@]}"
+            for iso in "${iso_files[@]}"; do
+                echo "   - $(basename "$iso"): $(du -h "$iso" | cut -f1)"
+            done
+        fi
     else
         echo "❌ ISO: Not created"
     fi
-
+    
     print_section "Directory Information"
     if [[ -d "$BUILD_DIR" ]]; then
-        echo "Build Directory: $(du -sh "$BUILD_DIR" | cut -f1)"
+        echo "Build Directory: $(du -sh "$BUILD_DIR" 2>/dev/null | cut -f1 || echo "N/A")"
+        echo "Build Directory Path: $BUILD_DIR"
+        
+        # Mostra il contenuto della directory per debug
+        echo "Build Directory Contents:"
+        ls -la "$BUILD_DIR" | grep -E '\.(iso|img)$' | while read -r line; do
+            echo "   $line"
+        done
+    else
+        echo "❌ Build Directory: Not found ($BUILD_DIR)"
     fi
-
+    
     read -p "Press ENTER to continue..."
 }
 

@@ -183,32 +183,29 @@ config_wizard() {
 show_config() {
     print_header "Current Configuration"
     
-    cat << EOF
-
-📦 ${BOLD}Software Versions:${NC}
-   Kernel:  ${YELLOW}$KERNEL_VERSION${NC}
-   BusyBox: ${YELLOW}$BUSYBOX_VERSION${NC}
-
-🏗️  ${BOLD}Build Settings:${NC}
-   Architecture: ${YELLOW}$KERNEL_ARCH${NC}
-   Parallel Jobs: ${YELLOW}${PARALLEL_JOBS:-$(nproc)}${NC}
-   Debug Mode: ${YELLOW}${DEBUG_MODE:-false}${NC}
-   Compression: ${YELLOW}${COMPRESSION_LEVEL:-9}${NC}
-
-📂 ${BOLD}Directories:${NC}
-   Build Dir: ${YELLOW}$BUILD_DIR${NC}
-   Config Dir: ${YELLOW}$CONFIG_DIR${NC}
-   
-💿 ${BOLD}ISO Settings:${NC}
-   Label: ${YELLOW}${ISO_LABEL:-Manzolo Linux}${NC}
-   Version: ${YELLOW}${ISO_VERSION:-1.0}${NC}
-   Publisher: ${YELLOW}${ISO_PUBLISHER:-Manzolo Project}${NC}
-
-📄 ${BOLD}Configuration File:${NC}
-   ${YELLOW}$MAIN_CONFIG_FILE${NC}
-
-EOF
-
+    # Method 1: Using echo statements (recommended)
+    echo -e "📦 ${BOLD}Software Versions:${NC}"
+    echo -e "   Kernel: ${YELLOW}$KERNEL_VERSION${NC}"
+    echo -e "   BusyBox: ${YELLOW}$BUSYBOX_VERSION${NC}"
+    echo
+    echo -e "🏗️ ${BOLD}Build Settings:${NC}"
+    echo -e "   Architecture: ${YELLOW}$KERNEL_ARCH${NC}"
+    echo -e "   Parallel Jobs: ${YELLOW}${PARALLEL_JOBS:-$(nproc)}${NC}"
+    echo -e "   Debug Mode: ${YELLOW}${DEBUG_MODE:-false}${NC}"
+    echo -e "   Compression: ${YELLOW}${COMPRESSION_LEVEL:-9}${NC}"
+    echo
+    echo -e "📂 ${BOLD}Directories:${NC}"
+    echo -e "   Build Dir: ${YELLOW}$BUILD_DIR${NC}"
+    echo -e "   Config Dir: ${YELLOW}$CONFIG_DIR${NC}"
+    echo
+    echo -e "💿 ${BOLD}ISO Settings:${NC}"
+    echo -e "   Label: ${YELLOW}${ISO_LABEL:-Manzolo Linux}${NC}"
+    echo -e "   Version: ${YELLOW}${ISO_VERSION:-1.0}${NC}"
+    echo -e "   Publisher: ${YELLOW}${ISO_PUBLISHER:-Manzolo Project}${NC}"
+    echo
+    echo -e "📄 ${BOLD}Configuration File:${NC}"
+    echo -e "   ${YELLOW}$MAIN_CONFIG_FILE${NC}"
+    
     read -p "Press ENTER to continue..."
 }
 
