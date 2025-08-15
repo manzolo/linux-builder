@@ -321,6 +321,143 @@ exit 0
 EOF
     chmod +x etc/udhcpc/default.script
 
+    print_step "Creating Hello World package..."
+
+    # Cartella temporanea per il pacchetto
+    PKG_TMP=$(mktemp -d)
+
+    # Struttura del pacchetto
+    mkdir -p "$PKG_TMP/usr/bin"
+    cat > "$PKG_TMP/usr/bin/hello" << 'EOF'
+    #!/bin/sh
+    echo "🚀 Benvenuto su Manzolo Linux!"
+    echo "Creato con amore da Manzolo Industries™"
+EOF
+    chmod +x "$PKG_TMP/usr/bin/hello"
+
+    # Creiamo il tar.gz
+    tar -czf "$BUSYBOX_INSTALL_DIR/www/hello-world.tar.gz" -C "$PKG_TMP" .
+
+    # Pulizia
+    rm -rf "$PKG_TMP"
+
+    print_success "Hello World package ready at /www/hello-world.tar.gz"
+
+# ManzoloPkg
+    mkdir -p "$BUSYBOX_INSTALL_DIR/usr/bin"
+    cat > "$BUSYBOX_INSTALL_DIR/usr/bin/manzolopkg" << 'EOF'
+#!/bin/sh
+# ManzoloPkg Advanced™
+# Minimal package manager with file tracking
+
+PKG_DIR="/manzolopkg/packages"
+DB_DIR="/manzolopkg/db"
+
+mkdir -p "$PKG_DIR" "$DB_DIR"
+
+usage() {
+    echo "ManzoloPkg - Minimal Package Manager"
+    echo "Usage:"
+    echo "  $0 list"
+    echo "  $0 install <pkgname|url>"
+    echo "  $0 remove <pkgname>"
+    exit 1
+}
+
+list_packages() {
+    echo "Installed packages:"
+    if [ "$(ls -A "$DB_DIR" 2>/dev/null)" ]; then
+        for pkg in "$DB_DIR"/*.files; do
+            basename "$pkg" .files
+        done
+    else
+        echo "(none)"
+    fi
+}
+
+install_package() {
+    SRC="$1"
+
+    # Se è un URL, scarica
+    if echo "$SRC" | grep -qE '^https?://'; then
+        PKG_NAME=$(basename "$SRC" .tar.gz)
+        PKG_FILE="$PKG_DIR/$PKG_NAME.tar.gz"
+        echo "Downloading $SRC..."
+        wget -q "$SRC" -O "$PKG_FILE" || {
+            echo "Download failed."
+            exit 1
+        }
+    else
+        PKG_NAME="$SRC"
+        PKG_FILE="$PKG_DIR/$PKG_NAME.tar.gz"
+    fi
+
+    if [ ! -f "$PKG_FILE" ]; then
+        echo "Package not found: $PKG_FILE"
+        exit 1
+    fi
+
+    if [ -f "$DB_DIR/$PKG_NAME.files" ]; then
+        echo "Package '$PKG_NAME' already installed."
+        exit 0
+    fi
+
+    echo "Installing $PKG_NAME..."
+    TMP_DIR=$(mktemp -d)
+
+    tar -xzf "$PKG_FILE" -C "$TMP_DIR" || {
+        echo "Extraction failed."
+        rm -rf "$TMP_DIR"
+        exit 1
+    }
+
+    # Copia i file e registra nel database
+    find "$TMP_DIR" -type f > "$DB_DIR/$PKG_NAME.files"
+    (cd "$TMP_DIR" && tar -cf - .) | (cd / && tar -xf -)
+
+    rm -rf "$TMP_DIR"
+    echo "Installed $PKG_NAME."
+}
+
+remove_package() {
+    PKG_NAME="$1"
+    DB_FILE="$DB_DIR/$PKG_NAME.files"
+
+    if [ ! -f "$DB_FILE" ]; then
+        echo "Package '$PKG_NAME' is not installed."
+        exit 1
+    fi
+
+    echo "Removing $PKG_NAME..."
+    while read -r file; do
+        rm -f "/${file#*/}" 2>/dev/null
+    done < "$DB_FILE"
+
+    rm -f "$DB_FILE"
+    echo "Package '$PKG_NAME' removed."
+}
+
+[ $# -lt 1 ] && usage
+
+case "$1" in
+    list) list_packages ;;
+    install)
+        [ $# -ne 2 ] && usage
+        install_package "$2"
+        ;;
+    remove)
+        [ $# -ne 2 ] && usage
+        remove_package "$2"
+        ;;
+    *) usage ;;
+esac
+EOF
+    chmod +x "$BUSYBOX_INSTALL_DIR/usr/bin/manzolopkg"
+
+    # Creiamo anche la cartella pacchetti
+    mkdir -p "$BUSYBOX_INSTALL_DIR/manzolopkg/packages"
+    touch "$BUSYBOX_INSTALL_DIR/manzolopkg/db.txt"
+
     # Create init scripts directory
     mkdir -p etc/init.d
     
