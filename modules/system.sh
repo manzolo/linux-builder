@@ -315,6 +315,41 @@ clean_component() {
     esac
 }
 
+# Clean all build artifacts, logs, and downloads
+clean_all() {
+    print_header "Comprehensive Cleanup"
+    
+    if [[ ! -d "$BUILD_DIR" ]]; then
+        print_info "The build directory does not exist. Nothing to clean."
+        return 0
+    fi
+    
+    print_warning "⚠️  ATTENZIONE! This action will remove ALL files in the build directory, including sources, build artifacts, logs, and downloads."
+    print_warning "This will reset the project to its initial state."
+    
+    if ask_yes_no "Do you want to proceed with a complete cleanup?"; then
+        print_step "Starting comprehensive cleanup of the build directory..."
+        
+        # Use a robust and safe method to remove everything inside BUILD_DIR
+        # This prevents accidental deletion of the project's root directory
+        if rm -rf "$BUILD_DIR"/*; then
+            print_success "✅ The build directory has been completely cleaned."
+            
+            # Recreate the build directory to ensure it exists for future operations
+            mkdir -p "$BUILD_DIR"
+            print_info "Recreated an empty build directory."
+        else
+            print_error "❌ Failed to perform the comprehensive cleanup."
+            return 1
+        fi
+    else
+        print_info "Cleanup operation aborted."
+        return 0
+    fi
+    
+    read -p "Press ENTER to continue..."
+}
+
 # Clean downloads with selective options
 clean_downloads() {
     local downloads_dir="$BUILD_DIR/downloads"
