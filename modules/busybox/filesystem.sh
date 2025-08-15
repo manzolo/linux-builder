@@ -30,8 +30,9 @@ create_filesystem() {
     
     # Create essential directories with correct permissions
     mkdir -p {dev,proc,sys,tmp,var/log,var/run,etc,root,home,usr/lib,usr/share}
-    mkdir -p www/cgi-bin  # Directory for httpd
-    mkdir -p etc/init.d   # Create init.d directory first
+    mkdir -p www/cgi-bin
+    mkdir -p etc/init.d
+    mkdir -p manzolopkg/packages
     
     # Set correct permissions
     chmod 755 {dev,proc,sys,var,etc,root,home,usr}
@@ -338,6 +339,7 @@ EOF
 
     # Create the tar.gz archive
     tar -czf "$BUSYBOX_INSTALL_DIR/www/hello-world.tar.gz" -C "$PKG_TMP" .
+    tar -czf "$BUSYBOX_INSTALL_DIR/manzolopkg/packages/hello-world.tar.gz" -C "$PKG_TMP" .
 
     # Cleanup
     rm -rf "$PKG_TMP"
