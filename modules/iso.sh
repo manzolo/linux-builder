@@ -54,7 +54,7 @@ EOF
     local iso_file="$BUILD_DIR/${iso_label// /-}.iso"
 
     print_step "Generating ISO image: $iso_file"
-    if grub-mkrescue -o "$iso_file" "$ISO_ROOT"; then
+    if grub-mkrescue -o "$iso_file" "$ISO_ROOT" >/dev/null 2>&1; then
         print_success "ISO image created successfully!"
         print_info "ISO saved to: $iso_file"
     else
