@@ -5,7 +5,13 @@
 # =============================================================================
 
 # Load other modules
+source "$SCRIPT_DIR/modules/kernel/configure.sh"
+source "$SCRIPT_DIR/modules/kernel/compile.sh"
 source "$SCRIPT_DIR/modules/kernel.sh"
+source "$SCRIPT_DIR/modules/busybox/configure.sh"
+source "$SCRIPT_DIR/modules/busybox/filesystem.sh"
+source "$SCRIPT_DIR/modules/busybox/compile.sh"
+source "$SCRIPT_DIR/modules/busybox/initram.sh"
 source "$SCRIPT_DIR/modules/busybox.sh"
 source "$SCRIPT_DIR/modules/iso.sh"
 source "$SCRIPT_DIR/modules/qemu.sh"
