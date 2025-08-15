@@ -1,4 +1,4 @@
-# CREAZIONE FILESYSTEM 
+# CREATION FILESYSTEM 
 create_filesystem() {
     print_header "Creating Root Filesystem"
     
@@ -31,11 +31,12 @@ create_filesystem() {
     # Create essential directories with correct permissions
     mkdir -p {dev,proc,sys,tmp,var/log,var/run,etc,root,home,usr/lib,usr/share}
     mkdir -p www/cgi-bin  # Directory for httpd
+    mkdir -p etc/init.d   # Create init.d directory first
     
     # Set correct permissions
     chmod 755 {dev,proc,sys,var,etc,root,home,usr}
     chmod 1777 tmp  # sticky bit for /tmp
-    chmod 755 www www/cgi-bin
+    chmod 755 www www/cgi-bin etc/init.d
     
     # Create device nodes
     print_step "Creating essential device nodes..."
@@ -179,7 +180,7 @@ EOF
 #!/bin/sh
 echo "Content-Type: text/html"
 echo ""
-echo "<html><head><meta charset="UTF-8">
+echo "<html><head><meta charset=\"UTF-8\">
 <title>CGI Test</title></head><body>"
 echo "<h1>CGI works!</h1>"
 echo "<p>Server: $SERVER_SOFTWARE</p>"
@@ -269,7 +270,7 @@ EOF
 </html>
 EOF
 
-    # udhcpc - Improved script (unchanged from your original code)
+    # udhcpc - Improved script
     mkdir -p etc/udhcpc
     cat > etc/udhcpc/default.script << 'EOF'
 #!/bin/sh
@@ -323,28 +324,32 @@ EOF
 
     print_step "Creating Hello World package..."
 
-    # Cartella temporanea per il pacchetto
+    # Temporary directory for the package
     PKG_TMP=$(mktemp -d)
 
-    # Struttura del pacchetto
+    # Package structure
     mkdir -p "$PKG_TMP/usr/bin"
     cat > "$PKG_TMP/usr/bin/hello" << 'EOF'
-    #!/bin/sh
-    echo "🚀 Benvenuto su Manzolo Linux!"
-    echo "Creato con amore da Manzolo Industries™"
+#!/bin/sh
+echo "🚀 Welcome to Manzolo Linux!"
+echo "Crafted with love by Manzolo Industries™"
 EOF
     chmod +x "$PKG_TMP/usr/bin/hello"
 
-    # Creiamo il tar.gz
+    # Create the tar.gz archive
     tar -czf "$BUSYBOX_INSTALL_DIR/www/hello-world.tar.gz" -C "$PKG_TMP" .
 
-    # Pulizia
+    # Cleanup
     rm -rf "$PKG_TMP"
 
     print_success "Hello World package ready at /www/hello-world.tar.gz"
 
-# ManzoloPkg
+    # Create package manager directories first
+    mkdir -p "$BUSYBOX_INSTALL_DIR/manzolopkg/packages"
+    mkdir -p "$BUSYBOX_INSTALL_DIR/manzolopkg/db"
     mkdir -p "$BUSYBOX_INSTALL_DIR/usr/bin"
+
+    # Fixed ManzoloPkg script
     cat > "$BUSYBOX_INSTALL_DIR/usr/bin/manzolopkg" << 'EOF'
 #!/bin/sh
 # ManzoloPkg Advanced™
@@ -356,35 +361,45 @@ DB_DIR="/manzolopkg/db"
 mkdir -p "$PKG_DIR" "$DB_DIR"
 
 usage() {
-    echo "ManzoloPkg - Minimal Package Manager"
-    echo "Usage:"
-    echo "  $0 list"
-    echo "  $0 install <pkgname|url>"
-    echo "  $0 remove <pkgname>"
-    exit 1
+    echo "╔══════════════════════════════════════════════════╗"
+    echo "║                 ManzoloPkg v2.0                  ║"
+    echo "║            Minimal Package Manager               ║"
+    echo "╠══════════════════════════════════════════════════╣"
+    echo "║ Usage:                                           ║"
+    echo "║   manzolopkg list                - List packages ║"
+    echo "║   manzolopkg install <pkg|url>   - Install pkg   ║"
+    echo "║   manzolopkg remove <pkgname>    - Remove pkg    ║"
+    echo "║   manzolopkg help                - Show this     ║"
+    echo "╚══════════════════════════════════════════════════╝"
+    [ "$1" != "help" ] && exit 1
 }
 
 list_packages() {
-    echo "Installed packages:"
+    echo "📦 Installed packages:"
     if [ "$(ls -A "$DB_DIR" 2>/dev/null)" ]; then
         for pkg in "$DB_DIR"/*.files; do
-            basename "$pkg" .files
+            [ -f "$pkg" ] && basename "$pkg" .files
         done
     else
-        echo "(none)"
+        echo "   (none installed)"
     fi
 }
 
 install_package() {
     SRC="$1"
+    
+    [ -z "$SRC" ] && {
+        echo "❌ Error: Package name or URL required"
+        exit 1
+    }
 
-    # Se è un URL, scarica
+    # If it's a URL, download it
     if echo "$SRC" | grep -qE '^https?://'; then
         PKG_NAME=$(basename "$SRC" .tar.gz)
         PKG_FILE="$PKG_DIR/$PKG_NAME.tar.gz"
-        echo "Downloading $SRC..."
+        echo "📥 Downloading $SRC..."
         wget -q "$SRC" -O "$PKG_FILE" || {
-            echo "Download failed."
+            echo "❌ Download failed."
             exit 1
         }
     else
@@ -393,82 +408,138 @@ install_package() {
     fi
 
     if [ ! -f "$PKG_FILE" ]; then
-        echo "Package not found: $PKG_FILE"
+        echo "❌ Package not found: $PKG_FILE"
         exit 1
     fi
 
     if [ -f "$DB_DIR/$PKG_NAME.files" ]; then
-        echo "Package '$PKG_NAME' already installed."
+        echo "⚠️  Package '$PKG_NAME' already installed."
         exit 0
     fi
 
-    echo "Installing $PKG_NAME..."
+    echo "📦 Installing $PKG_NAME..."
     TMP_DIR=$(mktemp -d)
 
-    tar -xzf "$PKG_FILE" -C "$TMP_DIR" || {
-        echo "Extraction failed."
+    # Extract and verify
+    tar -xzf "$PKG_FILE" -C "$TMP_DIR" 2>/dev/null || {
+        echo "❌ Extraction failed."
         rm -rf "$TMP_DIR"
         exit 1
     }
 
-    # Copia i file e registra nel database
-    find "$TMP_DIR" -type f > "$DB_DIR/$PKG_NAME.files"
-    (cd "$TMP_DIR" && tar -cf - .) | (cd / && tar -xf -)
+    # Log files before installation (with relative paths)
+    (cd "$TMP_DIR" && find . -type f -not -path "./.*") | sed 's|^\./||' > "$DB_DIR/$PKG_NAME.files"
+    
+    # Install files
+    (cd "$TMP_DIR" && tar -cf - .) | (cd / && tar -xf - 2>/dev/null)
 
     rm -rf "$TMP_DIR"
-    echo "Installed $PKG_NAME."
+    echo "✅ Package '$PKG_NAME' installed successfully."
 }
 
 remove_package() {
     PKG_NAME="$1"
     DB_FILE="$DB_DIR/$PKG_NAME.files"
 
+    [ -z "$PKG_NAME" ] && {
+        echo "❌ Error: Package name required"
+        exit 1
+    }
+
     if [ ! -f "$DB_FILE" ]; then
-        echo "Package '$PKG_NAME' is not installed."
+        echo "❌ Package '$PKG_NAME' is not installed."
         exit 1
     fi
 
-    echo "Removing $PKG_NAME..."
-    while read -r file; do
-        rm -f "/${file#*/}" 2>/dev/null
+    echo "🗑️  Removing package '$PKG_NAME'..."
+    
+    # Count files to remove
+    TOTAL_FILES=$(wc -l < "$DB_FILE")
+    REMOVED=0
+    
+    # Remove files (they are stored as relative paths)
+    while IFS= read -r file; do
+        # Skip empty lines
+        [ -z "$file" ] && continue
+        
+        FULL_PATH="/$file"
+        if [ -f "$FULL_PATH" ]; then
+            rm -f "$FULL_PATH" 2>/dev/null && REMOVED=$((REMOVED + 1))
+        elif [ -d "$FULL_PATH" ]; then
+            # Only remove directory if empty
+            rmdir "$FULL_PATH" 2>/dev/null && REMOVED=$((REMOVED + 1))
+        fi
     done < "$DB_FILE"
 
+    # Remove package database entry
     rm -f "$DB_FILE"
-    echo "Package '$PKG_NAME' removed."
+    
+    echo "✅ Package '$PKG_NAME' removed ($REMOVED/$TOTAL_FILES files)."
 }
 
-[ $# -lt 1 ] && usage
-
-case "$1" in
+# Main script logic
+case "${1:-help}" in
     list) list_packages ;;
     install)
         [ $# -ne 2 ] && usage
         install_package "$2"
         ;;
     remove)
-        [ $# -ne 2 ] && usage
+        [ $# -ne 2 ] && usage  
         remove_package "$2"
         ;;
+    help) usage help ;;
     *) usage ;;
 esac
 EOF
     chmod +x "$BUSYBOX_INSTALL_DIR/usr/bin/manzolopkg"
 
-    # Creiamo anche la cartella pacchetti
-    mkdir -p "$BUSYBOX_INSTALL_DIR/manzolopkg/packages"
-    touch "$BUSYBOX_INSTALL_DIR/manzolopkg/db.txt"
-
-    # Create init scripts directory
-    mkdir -p etc/init.d
-    
-    # Basic rcS script
+    # Fixed rcS script with ManzoloPkg help display
     cat > etc/init.d/rcS << 'EOF'
 #!/bin/sh
-# Basic system initialization
-echo "Starting system init..."
+# Manzolo Linux System Initialization
+
+echo "╔══════════════════════════════════════════════════╗"
+echo "║              🚀 Manzolo Linux v2.0               ║"
+echo "║           Starting system services...            ║"
+echo "╚══════════════════════════════════════════════════╝"
+
+# Mount filesystems
+echo "📁 Mounting filesystems..."
 mount -a
-hostname -F /etc/hostname
-echo "System init done."
+
+# Set hostname
+echo "🏷️  Setting hostname..."
+hostname -F /etc/hostname 2>/dev/null || hostname manzolo-linux
+
+# Initialize network (if available)
+echo "🌐 Initializing network interfaces..."
+for iface in eth0 enp0s3 enp0s8; do
+    if [ -e "/sys/class/net/$iface" ]; then
+        echo "   Found interface: $iface"
+        ifconfig "$iface" up 2>/dev/null || true
+        # Try DHCP in background
+        udhcpc -i "$iface" -b -q 2>/dev/null &
+        break
+    fi
+done
+
+echo ""
+echo "✅ System initialization completed!"
+echo ""
+
+# Display ManzoloPkg help
+manzolopkg help
+
+echo ""
+echo "💡 Quick start commands:"
+echo "   • manzolopkg install hello-world  (install sample package)"
+echo "   • httpd -p 8080 -h /www           (start web server)" 
+echo "   • ip addr show                    (check network)"
+echo "   • ping 8.8.8.8                   (test connectivity)"
+echo ""
+echo "🌟 Welcome to Manzolo Linux! Ready for action."
+echo "═══════════════════════════════════════════════════"
 EOF
     chmod +x etc/init.d/rcS
     
