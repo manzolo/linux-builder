@@ -1,13 +1,31 @@
-# CREATION FILESYSTEM 
-create_filesystem() {
-    print_header "Creating Root Filesystem"
-    
+#!/bin/bash
+
+# =============================================================================
+# Manzolo Linux - Root Filesystem Creation
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Configuration and Constants
+# -----------------------------------------------------------------------------
+readonly FILESYSTEM_VERSION="2.0"
+readonly HOSTNAME="manzolo-linux"
+readonly WEB_ROOT="/www"
+readonly CGI_BIN="/www/cgi-bin"
+
+# -----------------------------------------------------------------------------
+# Core Functions
+# -----------------------------------------------------------------------------
+
+validate_prerequisites() {
     if [[ ! -f "$BUSYBOX_BUILD_DIR/busybox" ]]; then
         print_error "BusyBox not compiled. Please compile BusyBox first."
         read -p "Press ENTER to continue..."
         return 1
     fi
-    
+    return 0
+}
+
+setup_base_filesystem() {
     print_step "Installing BusyBox to filesystem..."
     
     # Clean and create rootfs
@@ -25,33 +43,41 @@ create_filesystem() {
     fi
     
     cd "$BUSYBOX_INSTALL_DIR" || return 1
+}
+
+create_directory_structure() {
+    print_step "Creating filesystem structure..."
     
-    print_step "Creating filesystem structure and essential files..."
-    
-    # Create essential directories with correct permissions
+    # Create essential directories
     mkdir -p {dev,proc,sys,tmp,var/log,var/run,etc,root,home,usr/lib,usr/share}
-    mkdir -p www/cgi-bin
-    mkdir -p etc/init.d
-    mkdir -p manzolopkg/packages
+    mkdir -p www/cgi-bin etc/init.d manzolopkg/{packages,db} usr/bin
     
     # Set correct permissions
-    chmod 755 {dev,proc,sys,var,etc,root,home,usr}
+    chmod 755 {dev,proc,sys,var,etc,root,home,usr,www} www/cgi-bin etc/init.d
     chmod 1777 tmp  # sticky bit for /tmp
-    chmod 755 www www/cgi-bin etc/init.d
-    
-    # Create device nodes
+}
+
+create_device_nodes() {
     print_step "Creating essential device nodes..."
-    sudo mknod dev/null c 1 3 2>/dev/null || true
-    sudo mknod dev/zero c 1 5 2>/dev/null || true
-    sudo mknod dev/random c 1 8 2>/dev/null || true
-    sudo mknod dev/urandom c 1 9 2>/dev/null || true
-    sudo mknod dev/console c 5 1 2>/dev/null || true
-    sudo mknod dev/tty c 5 0 2>/dev/null || true
     
-    # Create basic configuration files
-    print_step "Creating configuration files..."
+    local devices=(
+        "dev/null c 1 3"
+        "dev/zero c 1 5"
+        "dev/random c 1 8"
+        "dev/urandom c 1 9"
+        "dev/console c 5 1"
+        "dev/tty c 5 0"
+    )
     
-    # /etc/passwd - ADD www-data user
+    for device_spec in "${devices[@]}"; do
+        sudo mknod $device_spec 2>/dev/null || true
+    done
+}
+
+create_system_users() {
+    print_step "Creating system users and groups..."
+    
+    # /etc/passwd
     cat > etc/passwd << 'EOF'
 root:x:0:0:root:/root:/bin/sh
 daemon:x:1:1:daemon:/usr/sbin:/bin/false
@@ -60,50 +86,20 @@ sys:x:3:3:sys:/dev:/bin/false
 www-data:x:33:33:www-data:/var/www:/bin/false
 nobody:x:65534:65534:nobody:/nonexistent:/bin/false
 EOF
-    
-    # /etc/group - ADD www-data group
+
+    # /etc/group
     cat > etc/group << 'EOF'
 root:x:0:
 daemon:x:1:
 bin:x:2:
 sys:x:3:
 tty:x:5:
-disk:x:6:
-lp:x:7:
-mail:x:8:
-news:x:9:
-uucp:x:10:
-man:x:12:
-proxy:x:13:
-kmem:x:15:
-dialout:x:20:
-fax:x:21:
-voice:x:22:
-cdrom:x:24:
-floppy:x:25:
-tape:x:26:
-sudo:x:27:
-audio:x:29:
-dip:x:30:
 www-data:x:33:
-backup:x:34:
-operator:x:37:
-list:x:38:
-irc:x:39:
-src:x:40:
-gnats:x:41:
-shadow:x:42:
-utmp:x:43:
-video:x:44:
-sasl:x:45:
-plugdev:x:46:
-staff:x:50:
-games:x:60:
 users:x:100:
 nogroup:x:65534:
 EOF
-    
-    # /etc/shadow (basic) - ADD www-data
+
+    # /etc/shadow
     cat > etc/shadow << 'EOF'
 root:*:19000:0:99999:7:::
 daemon:*:19000:0:99999:7:::
@@ -112,18 +108,74 @@ sys:*:19000:0:99999:7:::
 www-data:*:19000:0:99999:7:::
 nobody:*:19000:0:99999:7:::
 EOF
+}
+
+create_network_config() {
+    print_step "Creating network configuration..."
     
     # /etc/hosts
-    cat > etc/hosts << 'EOF'
-127.0.0.1    localhost manzolo-linux
-127.0.1.1    manzolo-linux
+    cat > etc/hosts << EOF
+127.0.0.1    localhost $HOSTNAME
+127.0.1.1    $HOSTNAME
 ::1          localhost ip6-localhost ip6-loopback
 ff02::1      ip6-allnodes
 ff02::2      ip6-allrouters
 EOF
-    
+
     # /etc/hostname
-    echo "manzolo-linux" > etc/hostname
+    echo "$HOSTNAME" > etc/hostname
+    
+    # DHCP client script
+    create_dhcp_script
+}
+
+create_dhcp_script() {
+    mkdir -p etc/udhcpc
+    cat > etc/udhcpc/default.script << 'EOF'
+#!/bin/sh
+# DHCP client configuration script
+
+[ -z "$1" ] && echo "Error: should be called from udhcpc" && exit 1
+
+RESOLV_CONF="/etc/resolv.conf"
+RESOLV_CONF_BAK="/etc/resolv.conf.bak"
+
+[ -n "$broadcast" ] && BROADCAST="broadcast $broadcast"
+[ -n "$subnet" ] && NETMASK="netmask $subnet"
+
+case "$1" in
+    deconfig)
+        echo "Deconfiguring network interface $interface"
+        /sbin/ifconfig $interface 0.0.0.0
+        while route del default gw 0.0.0.0 dev $interface 2>/dev/null; do :; done
+        ;;
+    renew|bound)
+        echo "Configuring network interface $interface"
+        /sbin/ifconfig $interface $ip $BROADCAST $NETMASK
+        
+        if [ -n "$router" ]; then
+            echo "Setting default gateway to $router"
+            while route del default gw 0.0.0.0 dev $interface 2>/dev/null; do :; done
+            route add default gw $router dev $interface
+        fi
+        
+        echo "Updating DNS configuration"
+        [ -f "$RESOLV_CONF" ] && mv "$RESOLV_CONF" "$RESOLV_CONF_BAK"
+        [ -n "$domain" ] && echo "search $domain" > "$RESOLV_CONF"
+        for dns_server in $dns; do
+            echo "nameserver $dns_server" >> "$RESOLV_CONF"
+        done
+        
+        echo "Network configured: IP=$ip, Gateway=$router, DNS=$dns"
+        ;;
+esac
+exit 0
+EOF
+    chmod +x etc/udhcpc/default.script
+}
+
+create_system_config() {
+    print_step "Creating system configuration files..."
     
     # /etc/fstab
     cat > etc/fstab << 'EOF'
@@ -134,10 +186,10 @@ devtmpfs        /dev          devtmpfs defaults        0      0
 tmpfs           /tmp          tmpfs  defaults,mode=1777 0     0
 tmpfs           /var/run      tmpfs  defaults          0      0
 EOF
-    
+
     # /etc/inittab
     cat > etc/inittab << 'EOF'
-# /etc/inittab
+# System initialization
 ::sysinit:/etc/init.d/rcS
 ::askfirst:-/bin/sh
 ::ctrlaltdel:/sbin/reboot
@@ -145,27 +197,14 @@ EOF
 ::shutdown:/bin/umount -a -r
 ::restart:/sbin/init
 EOF
+}
 
-    # === HTTPD CONFIGURATION ===
-    print_step "Creating httpd configuration..."
+create_web_server_config() {
+    print_step "Setting up web server..."
     
-    # httpd configuration file (optional but useful for debugging)
+    # HTTP server configuration
     cat > etc/httpd.conf << 'EOF'
 # BusyBox httpd configuration
-# Uncomment and modify as needed
-
-# Set document root
-#H:/www
-
-# Enable CGI scripts in /cgi-bin/
-#*.cgi:/cgi-bin
-
-# Default index files
-#I:index.html
-#I:index.htm
-#I:index.cgi
-
-# MIME types
 .html:text/html
 .htm:text/html
 .css:text/css
@@ -176,24 +215,14 @@ EOF
 .ico:image/x-icon
 EOF
 
-    # CGI test script
-    cat > www/cgi-bin/test.cgi << 'EOF'
-#!/bin/sh
-echo "Content-Type: text/html"
-echo ""
-echo "<html><head><meta charset=\"UTF-8\">
-<title>CGI Test</title></head><body>"
-echo "<h1>CGI works!</h1>"
-echo "<p>Server: $SERVER_SOFTWARE</p>"
-echo "<p>Date: $(date)</p>"
-echo "<p>Client IP: $REMOTE_ADDR</p>"
-echo "<p>User Agent: $HTTP_USER_AGENT</p>"
-echo "</body></html>"
-EOF
-    chmod +x www/cgi-bin/test.cgi
+    # Create web content
+    create_web_content
+    create_cgi_scripts
+}
 
-    # Improved web server content
-    cat > www/index.html << 'EOF'
+create_web_content() {
+    # Main index page
+    cat > www/index.html << EOF
 <!DOCTYPE html>
 <html>
 <head>
@@ -209,14 +238,15 @@ EOF
         li { padding: 5px 0; }
         a { color: #0066cc; text-decoration: none; }
         a:hover { text-decoration: underline; }
+        code { background: #f0f0f0; padding: 2px 5px; border-radius: 3px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🚀 Manzolo Linux is online!</h1>
+        <h1>🚀 Manzolo Linux v$FILESYSTEM_VERSION</h1>
         
         <div class="status">
-            <strong>✅ Operating System:</strong> Manzolo Linux v2.0<br>
+            <strong>✅ Operating System:</strong> Manzolo Linux v$FILESYSTEM_VERSION<br>
             <strong>✅ Web Server:</strong> BusyBox httpd<br>
             <strong>✅ Date/Time:</strong> <script>document.write(new Date().toLocaleString());</script>
         </div>
@@ -224,24 +254,25 @@ EOF
         <h2>🔧 Tests and Features</h2>
         <ul>
             <li>📄 <a href="/cgi-bin/test.cgi">Test CGI script</a></li>
+            <li>📄 <a href="/cgi-bin/info.cgi">System information</a></li>
             <li>🔍 <a href="/test404.html">Test 404 page</a></li>
         </ul>
         
         <div class="info">
-            <h3>💡 How to use the web server:</h3>
+            <h3>💡 Package Manager Commands:</h3>
             <ul>
-                <li>Web documents: <code>/www/</code></li>
-                <li>CGI scripts: <code>/www/cgi-bin/</code></li>
-                <li>Server logs: visible in the console</li>
+                <li><code>manzolopkg list</code> - List installed packages</li>
+                <li><code>manzolopkg update</code> - Update package index</li>
+                <li><code>manzolopkg install manzolo-hello-world</code> - Install sample package</li>
             </ul>
         </div>
         
         <div class="info">
-            <h3>🌐 Useful network commands:</h3>
+            <h3>🌐 Network Commands:</h3>
             <ul>
                 <li><code>ip addr show</code> - Show network interfaces</li>
                 <li><code>ping 8.8.8.8</code> - Test connectivity</li>
-                <li><code>wget http://localhost/</code> - Test the web server</li>
+                <li><code>httpd -p 8080 -h /www</code> - Start web server</li>
             </ul>
         </div>
     </div>
@@ -249,7 +280,7 @@ EOF
 </html>
 EOF
 
-    # Custom error page
+    # 404 error page
     cat > www/404.html << 'EOF'
 <!DOCTYPE html>
 <html>
@@ -270,108 +301,66 @@ EOF
 </body>
 </html>
 EOF
+}
 
-    # udhcpc - Improved script
-    mkdir -p etc/udhcpc
-    cat > etc/udhcpc/default.script << 'EOF'
+create_cgi_scripts() {
+    # Basic CGI test script
+    cat > www/cgi-bin/test.cgi << 'EOF'
 #!/bin/sh
-# udhcpc script edited by Tim Riker <Tim@Rikers.org>
-
-[ -z "$1" ] && echo "Error: should be called from udhcpc" && exit 1
-
-RESOLV_CONF="/etc/resolv.conf"
-RESOLV_CONF_BAK="/etc/resolv.conf.bak"
-
-[ -n "$broadcast" ] && BROADCAST="broadcast $broadcast"
-[ -n "$subnet" ] && NETMASK="netmask $subnet"
-
-case "$1" in
-    deconfig)
-        echo "Deconfiguring network interface $interface"
-        /sbin/ifconfig $interface 0.0.0.0
-        while route del default gw 0.0.0.0 dev $interface 2>/dev/null; do
-            :
-        done
-        ;;
-
-    renew|bound)
-        echo "Configuring network interface $interface"
-        /sbin/ifconfig $interface $ip $BROADCAST $NETMASK
-
-        if [ -n "$router" ] ; then
-            echo "Setting default gateway to $router"
-            while route del default gw 0.0.0.0 dev $interface 2>/dev/null; do
-                :
-            done
-            route add default gw $router dev $interface
-        fi
-
-        echo "Updating DNS configuration"
-        [ -f "$RESOLV_CONF" ] && mv "$RESOLV_CONF" "$RESOLV_CONF_BAK"
-        
-        [ -n "$domain" ] && echo "search $domain" > "$RESOLV_CONF"
-        
-        for i in $dns ; do
-            echo "nameserver $i" >> "$RESOLV_CONF"
-        done
-        
-        echo "Network configured: IP=$ip, Gateway=$router, DNS=$dns"
-        ;;
-esac
-
-exit 0
+echo "Content-Type: text/html"
+echo ""
+echo "<!DOCTYPE html><html><head><title>CGI Test</title></head><body>"
+echo "<h1>CGI works!</h1>"
+echo "<p><strong>Server:</strong> $SERVER_SOFTWARE</p>"
+echo "<p><strong>Date:</strong> $(date)</p>"
+echo "<p><strong>Client IP:</strong> $REMOTE_ADDR</p>"
+echo "<p><strong>User Agent:</strong> $HTTP_USER_AGENT</p>"
+echo "</body></html>"
 EOF
-    chmod +x etc/udhcpc/default.script
 
-    print_step "Creating Manzolo Hello World package..."
-
-    # Temporary directory for the package
-    PKG_TMP=$(mktemp -d)
-
-    # Package structure
-    mkdir -p "$PKG_TMP/usr/bin"
-    cat > "$PKG_TMP/usr/bin/manzolo-hello-world" << 'EOF'
+    # System info CGI script
+    cat > www/cgi-bin/info.cgi << 'EOF'
 #!/bin/sh
-echo "🚀 Welcome to Manzolo Linux!"
-echo "Crafted with love by Manzolo Industries™"
+echo "Content-Type: text/html"
+echo ""
+echo "<!DOCTYPE html><html><head><title>System Info</title></head><body>"
+echo "<h1>System Information</h1>"
+echo "<h2>Uptime</h2><pre>$(uptime)</pre>"
+echo "<h2>Memory</h2><pre>$(free)</pre>"
+echo "<h2>Disk Usage</h2><pre>$(df -h)</pre>"
+echo "<h2>Network Interfaces</h2><pre>$(ip addr show 2>/dev/null || ifconfig)</pre>"
+echo "</body></html>"
 EOF
-    chmod +x "$PKG_TMP/usr/bin/manzolo-hello-world"
 
-    # Create the tar.gz archive
-    tar -czf "$BUSYBOX_INSTALL_DIR/www/manzolo-hello-world.tar.gz" -C "$PKG_TMP" .
-    tar -czf "$BUSYBOX_INSTALL_DIR/manzolopkg/packages/manzolo-hello-world.tar.gz" -C "$PKG_TMP" .
+    # Make CGI scripts executable
+    chmod +x www/cgi-bin/*.cgi
+}
 
-    # Cleanup
-    rm -rf "$PKG_TMP"
-
-    print_success "Hello World package ready at /www/manzolo-hello-world.tar.gz"
-
-    # Create package manager directories first
-    mkdir -p "$BUSYBOX_INSTALL_DIR/manzolopkg/packages"
-    mkdir -p "$BUSYBOX_INSTALL_DIR/manzolopkg/db"
-    mkdir -p "$BUSYBOX_INSTALL_DIR/usr/bin"
-
-    # Fixed ManzoloPkg script
-    cat > "$BUSYBOX_INSTALL_DIR/usr/bin/manzolopkg" << 'EOF'
+create_package_manager() {
+    print_step "Setting up ManzoloPkg package manager..."
+    
+    cat > usr/bin/manzolopkg << 'EOF'
 #!/bin/sh
-# ManzoloPkg Advanced™ + Repo Support
+# ManzoloPkg - Minimal Package Manager for Manzolo Linux
 
-PKG_DIR="/manzolopkg/packages"
-DB_DIR="/manzolopkg/db"
-REPO_FILE="/manzolopkg/repo.txt"
-INDEX_FILE="/manzolopkg/index.txt"
+readonly PKG_DIR="/manzolopkg/packages"
+readonly DB_DIR="/manzolopkg/db"
+readonly REPO_FILE="/manzolopkg/repo.txt"
+readonly INDEX_FILE="/manzolopkg/index.txt"
 
+# Initialize directories
 mkdir -p "$PKG_DIR" "$DB_DIR"
 [ -f "$REPO_FILE" ] || echo "http://127.0.0.1/repo" > "$REPO_FILE"
 
 usage() {
-    echo "ManzoloPkg - Minimal Package Manager"
+    echo "ManzoloPkg - Package Manager for Manzolo Linux"
     echo "Usage:"
-    echo "  $0 list"
-    echo "  $0 install <pkgname|url>"
-    echo "  $0 remove <pkgname>"
-    echo "  $0 update"
-    echo "  $0 search [term]"
+    echo "  $0 list                    - List installed packages"
+    echo "  $0 install <pkg|url>       - Install package"
+    echo "  $0 remove <pkg>            - Remove package"
+    echo "  $0 update                  - Update package index"
+    echo "  $0 search [term]           - Search packages"
+    echo "  $0 help                    - Show this help"
     exit 1
 }
 
@@ -379,141 +368,162 @@ list_packages() {
     echo "Installed packages:"
     if [ "$(ls -A "$DB_DIR" 2>/dev/null)" ]; then
         for pkg in "$DB_DIR"/*.files; do
-            basename "$pkg" .files
+            [ -f "$pkg" ] && basename "$pkg" .files
         done
     else
-        echo "(none)"
+        echo "  (none installed)"
     fi
 }
 
 update_repo() {
-    REPO_URL=$(cat "$REPO_FILE")
-    echo "Updating repo from $REPO_URL..."
-    wget -q "$REPO_URL/index.txt" -O "$INDEX_FILE" || {
-        echo "Failed to update index."
-        exit 1
-    }
-    echo "Repo updated."
+    local repo_url=$(cat "$REPO_FILE")
+    echo "Updating repository from $repo_url..."
+    
+    if wget -q "$repo_url/index.txt" -O "$INDEX_FILE"; then
+        echo "Repository index updated successfully."
+    else
+        echo "Failed to update repository index."
+        return 1
+    fi
 }
 
-search_repo() {
-    [ ! -f "$INDEX_FILE" ] && {
-        echo "Index not found. Run '$0 update' first."
-        exit 1
-    }
+search_packages() {
+    if [ ! -f "$INDEX_FILE" ]; then
+        echo "Package index not found. Run 'manzolopkg update' first."
+        return 1
+    fi
+    
     if [ -n "$1" ]; then
-        grep -i "$1" "$INDEX_FILE"
+        echo "Searching for '$1':"
+        grep -i "$1" "$INDEX_FILE" || echo "  No packages found."
     else
+        echo "Available packages:"
         cat "$INDEX_FILE"
     fi
 }
 
 install_package() {
-    SRC="$1"
-
-    # Se è un URL completo
-    if echo "$SRC" | grep -qE '^https?://'; then
-        PKG_NAME=$(basename "$SRC" .tar.gz)
-        PKG_FILE="$PKG_DIR/$PKG_NAME.tar.gz"
-        echo "Downloading $SRC..."
-        wget -q "$SRC" -O "$PKG_FILE" || {
+    local src="$1"
+    local pkg_name pkg_file repo_url
+    
+    if echo "$src" | grep -qE '^https?://'; then
+        # Full URL provided
+        pkg_name=$(basename "$src" .tar.gz)
+        pkg_file="$PKG_DIR/$pkg_name.tar.gz"
+        echo "Downloading from $src..."
+        wget -q "$src" -O "$pkg_file" || {
             echo "Download failed."
-            exit 1
+            return 1
         }
     else
-        # Usa repo
-        PKG_NAME="$SRC"
-        PKG_FILE="$PKG_DIR/$PKG_NAME.tar.gz"
-        REPO_URL=$(cat "$REPO_FILE")
-        echo "Downloading $PKG_NAME from repo..."
-        wget -q "$REPO_URL/$PKG_NAME.tar.gz" -O "$PKG_FILE" || {
-            echo "Package not found in repo."
-            exit 1
+        # Package name - use repository
+        pkg_name="$src"
+        pkg_file="$PKG_DIR/$pkg_name.tar.gz"
+        repo_url=$(cat "$REPO_FILE")
+        echo "Installing $pkg_name from repository..."
+        wget -q "$repo_url/$pkg_name.tar.gz" -O "$pkg_file" || {
+            echo "Package '$pkg_name' not found in repository."
+            return 1
         }
     fi
-
-    if [ -f "$DB_DIR/$PKG_NAME.files" ]; then
-        echo "Package '$PKG_NAME' already installed."
-        exit 0
+    
+    if [ -f "$DB_DIR/$pkg_name.files" ]; then
+        echo "Package '$pkg_name' is already installed."
+        return 0
     fi
-
-    echo "Installing $PKG_NAME..."
-    TMP_DIR=$(mktemp -d)
-    tar -xzf "$PKG_FILE" -C "$TMP_DIR" || {
-        echo "Extraction failed."
-        rm -rf "$TMP_DIR"
-        exit 1
-    }
-
-    find "$TMP_DIR" -type f | sed "s|$TMP_DIR||" > "$DB_DIR/$PKG_NAME.files"
-    (cd "$TMP_DIR" && tar -cf - .) | (cd / && tar -xf -)
-    rm -rf "$TMP_DIR"
-    echo "Installed $PKG_NAME."
+    
+    echo "Installing $pkg_name..."
+    local tmp_dir=$(mktemp -d)
+    
+    if tar -xzf "$pkg_file" -C "$tmp_dir"; then
+        # Record installed files
+        find "$tmp_dir" -type f | sed "s|$tmp_dir||" > "$DB_DIR/$pkg_name.files"
+        # Install files
+        (cd "$tmp_dir" && tar -cf - .) | (cd / && tar -xf -)
+        echo "Package '$pkg_name' installed successfully."
+    else
+        echo "Failed to extract package."
+        rm -rf "$tmp_dir"
+        return 1
+    fi
+    
+    rm -rf "$tmp_dir"
 }
 
 remove_package() {
-    PKG_NAME="$1"
-    DB_FILE="$DB_DIR/$PKG_NAME.files"
-    if [ ! -f "$DB_FILE" ]; then
-        echo "Package '$PKG_NAME' is not installed."
-        exit 1
+    local pkg_name="$1"
+    local db_file="$DB_DIR/$pkg_name.files"
+    
+    if [ ! -f "$db_file" ]; then
+        echo "Package '$pkg_name' is not installed."
+        return 1
     fi
-    echo "Removing $PKG_NAME..."
+    
+    echo "Removing $pkg_name..."
     while read -r file; do
-        rm -f "/${file#*/}" 2>/dev/null
-    done < "$DB_FILE"
-    rm -f "$DB_FILE"
-    echo "Package '$PKG_NAME' removed."
+        [ -n "$file" ] && rm -f "$file" 2>/dev/null
+    done < "$db_file"
+    
+    rm -f "$db_file"
+    echo "Package '$pkg_name' removed successfully."
 }
 
-[ $# -lt 1 ] && usage
-
-case "$1" in
+# Main command dispatcher
+case "${1:-help}" in
     list) list_packages ;;
-    install) [ $# -ne 2 ] && usage; install_package "$2" ;;
-    remove) [ $# -ne 2 ] && usage; remove_package "$2" ;;
+    install) 
+        [ $# -ne 2 ] && usage
+        install_package "$2" ;;
+    remove) 
+        [ $# -ne 2 ] && usage
+        remove_package "$2" ;;
     update) update_repo ;;
-    search) search_repo "$2" ;;
+    search) search_packages "$2" ;;
+    help|--help|-h) usage ;;
     *) usage ;;
 esac
 EOF
-    chmod +x "$BUSYBOX_INSTALL_DIR/usr/bin/manzolopkg"
+    chmod +x usr/bin/manzolopkg
+}
 
-    print_step "Creating local ManzoloPkg repo..."
-
-    # Cartella repo
-    mkdir -p "$BUSYBOX_INSTALL_DIR/www/repo"
-
-    # --- 1. Pacchetto manzolo-hello-world ---
-    PKG_TMP=$(mktemp -d)
-
-    # Struttura pacchetto
-    mkdir -p "$PKG_TMP/usr/bin"
-    cat > "$PKG_TMP/usr/bin/manzolo-hello-world" << 'EOF'
-    #!/bin/sh
-    echo "🚀 Benvenuto su Manzolo Linux!"
-    echo "Creato con amore da Manzolo Industries™"
+create_sample_packages() {
+    print_step "Creating sample packages..."
+    
+    # Create hello-world package
+    local pkg_tmp=$(mktemp -d)
+    mkdir -p "$pkg_tmp/usr/bin"
+    
+    cat > "$pkg_tmp/usr/bin/manzolo-hello-world" << 'EOF'
+#!/bin/sh
+echo "🚀 Welcome to Manzolo Linux!"
+echo "Crafted with love by Manzolo Industries™"
+echo "Version: $(uname -r)"
+echo "Hostname: $(hostname)"
+echo "Uptime: $(uptime)"
 EOF
-    chmod +x "$PKG_TMP/usr/bin/manzolo-hello-world"
+    chmod +x "$pkg_tmp/usr/bin/manzolo-hello-world"
+    
+    # Create package archives
+    mkdir -p www/repo manzolopkg/packages
+    tar -czf "www/repo/manzolo-hello-world.tar.gz" -C "$pkg_tmp" .
+    tar -czf "manzolopkg/packages/manzolo-hello-world.tar.gz" -C "$pkg_tmp" .
+    
+    # Create repository index
+    echo "manzolo-hello-world" > www/repo/index.txt
+    
+    rm -rf "$pkg_tmp"
+    print_success "Sample packages created"
+}
 
-    # Creiamo il tar.gz del pacchetto
-    tar -czf "$BUSYBOX_INSTALL_DIR/www/repo/manzolo-hello-world.tar.gz" -C "$PKG_TMP" .
-
-    # Pulizia
-    rm -rf "$PKG_TMP"
-
-    # --- 2. index.txt ---
-    echo "manzolo-hello-world" > "$BUSYBOX_INSTALL_DIR/www/repo/index.txt"
-
-    print_success "Local repo created at /www/repo/"
-
-    # Fixed rcS script with ManzoloPkg help display
-    cat > etc/init.d/rcS << 'EOF'
+create_init_script() {
+    print_step "Creating system initialization script..."
+    
+    cat > etc/init.d/rcS << EOF
 #!/bin/sh
 # Manzolo Linux System Initialization
 
 echo "╔══════════════════════════════════════════════════╗"
-echo "║              🚀 Manzolo Linux v2.0               ║"
+echo "║              🚀 Manzolo Linux v$FILESYSTEM_VERSION               ║"
 echo "║           Starting system services...            ║"
 echo "╚══════════════════════════════════════════════════╝"
 
@@ -523,16 +533,15 @@ mount -a
 
 # Set hostname
 echo "🏷️  Setting hostname..."
-hostname -F /etc/hostname 2>/dev/null || hostname manzolo-linux
+hostname -F /etc/hostname 2>/dev/null || hostname $HOSTNAME
 
-# Initialize network (if available)
+# Initialize network
 echo "🌐 Initializing network interfaces..."
 for iface in eth0 enp0s3 enp0s8; do
-    if [ -e "/sys/class/net/$iface" ]; then
-        echo "   Found interface: $iface"
-        ifconfig "$iface" up 2>/dev/null || true
-        # Try DHCP in background
-        udhcpc -i "$iface" -b -q 2>/dev/null &
+    if [ -e "/sys/class/net/\$iface" ]; then
+        echo "   Found interface: \$iface"
+        ifconfig "\$iface" up 2>/dev/null || true
+        udhcpc -i "\$iface" -b -q 2>/dev/null &
         break
     fi
 done
@@ -540,35 +549,71 @@ done
 echo ""
 echo "✅ System initialization completed!"
 echo ""
-
-# Display ManzoloPkg help
-manzolopkg help
-
-echo ""
 echo "💡 Quick start commands:"
 echo "   • manzolopkg install manzolo-hello-world  (install sample package)"
-echo "   • httpd -p 8080 -h /www           (start web server)" 
-echo "   • ip addr show                    (check network)"
-echo "   • ping 8.8.8.8                   (test connectivity)"
+echo "   • httpd -p 8080 -h /www                   (start web server)"
+echo "   • ip addr show                            (check network)"
+echo "   • ping 8.8.8.8                           (test connectivity)"
 echo ""
 echo "🌟 Welcome to Manzolo Linux! Ready for action."
 echo "═══════════════════════════════════════════════════"
 EOF
     chmod +x etc/init.d/rcS
+}
+
+set_permissions() {
+    print_step "Setting correct permissions..."
     
-    # Set correct ownership and permissions for www
+    # Web server permissions
     chown -R root:root www/ 2>/dev/null || true
     chmod -R 755 www/
-    chmod 755 www/cgi-bin/*.cgi
+    find www/cgi-bin -name "*.cgi" -exec chmod +x {} \;
     
-    print_success "Filesystem structure created successfully with httpd support"
+    # System file permissions
+    chmod 640 etc/shadow
+    chmod 644 etc/passwd etc/group etc/hosts etc/hostname etc/fstab
+    chmod 755 etc/init.d/rcS
+}
 
-    # Show filesystem statistics
+show_statistics() {
     print_section "Filesystem Statistics"
     echo "Total size: $(du -sh . | cut -f1)"
     echo "Number of files: $(find . -type f | wc -l)"
     echo "Number of directories: $(find . -type d | wc -l)"
     echo "Web server content: $(du -sh www | cut -f1)"
+}
+
+# -----------------------------------------------------------------------------
+# Main Function
+# -----------------------------------------------------------------------------
+
+create_filesystem() {
+    print_header "Creating Root Filesystem"
+    
+    # Validation
+    validate_prerequisites || return 1
+    
+    # Core filesystem setup
+    setup_base_filesystem || return 1
+    create_directory_structure
+    create_device_nodes
+    
+    # System configuration
+    create_system_users
+    create_network_config
+    create_system_config
+    create_init_script
+    
+    # Services setup
+    create_web_server_config
+    create_package_manager
+    create_sample_packages
+    
+    # Final touches
+    set_permissions
+    
+    print_success "Filesystem structure created successfully"
+    show_statistics
     
     cd "$CUR_DIR" || return 1
     read -p "Press ENTER to continue..."
