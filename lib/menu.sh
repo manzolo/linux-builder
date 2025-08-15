@@ -469,7 +469,7 @@ iso_menu() {
 
 EOF
 
-        read -rp "$(echo -e "${CYAN}Select option [1-7]: ${NC}")" choice
+        read -rp "$(echo -e "${CYAN}Select option [1-3]: ${NC}")" choice
 
         case $choice in
             1) create_standard_iso ;;
