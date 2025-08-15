@@ -354,147 +354,158 @@ EOF
     # Fixed ManzoloPkg script
     cat > "$BUSYBOX_INSTALL_DIR/usr/bin/manzolopkg" << 'EOF'
 #!/bin/sh
-# ManzoloPkg Advanced™
-# Minimal package manager with file tracking
+# ManzoloPkg Advanced™ + Repo Support
 
 PKG_DIR="/manzolopkg/packages"
 DB_DIR="/manzolopkg/db"
+REPO_FILE="/manzolopkg/repo.txt"
+INDEX_FILE="/manzolopkg/index.txt"
 
 mkdir -p "$PKG_DIR" "$DB_DIR"
+[ -f "$REPO_FILE" ] || echo "http://127.0.0.1/repo" > "$REPO_FILE"
 
 usage() {
-    echo "╔══════════════════════════════════════════════════╗"
-    echo "║                 ManzoloPkg v2.0                  ║"
-    echo "║            Minimal Package Manager               ║"
-    echo "╠══════════════════════════════════════════════════╣"
-    echo "║ Usage:                                           ║"
-    echo "║   manzolopkg list                - List packages ║"
-    echo "║   manzolopkg install <pkg|url>   - Install pkg   ║"
-    echo "║   manzolopkg remove <pkgname>    - Remove pkg    ║"
-    echo "║   manzolopkg help                - Show this     ║"
-    echo "╚══════════════════════════════════════════════════╝"
-    [ "$1" != "help" ] && exit 1
+    echo "ManzoloPkg - Minimal Package Manager"
+    echo "Usage:"
+    echo "  $0 list"
+    echo "  $0 install <pkgname|url>"
+    echo "  $0 remove <pkgname>"
+    echo "  $0 update"
+    echo "  $0 search [term]"
+    exit 1
 }
 
 list_packages() {
-    echo "📦 Installed packages:"
+    echo "Installed packages:"
     if [ "$(ls -A "$DB_DIR" 2>/dev/null)" ]; then
         for pkg in "$DB_DIR"/*.files; do
-            [ -f "$pkg" ] && basename "$pkg" .files
+            basename "$pkg" .files
         done
     else
-        echo "   (none installed)"
+        echo "(none)"
+    fi
+}
+
+update_repo() {
+    REPO_URL=$(cat "$REPO_FILE")
+    echo "Updating repo from $REPO_URL..."
+    wget -q "$REPO_URL/index.txt" -O "$INDEX_FILE" || {
+        echo "Failed to update index."
+        exit 1
+    }
+    echo "Repo updated."
+}
+
+search_repo() {
+    [ ! -f "$INDEX_FILE" ] && {
+        echo "Index not found. Run '$0 update' first."
+        exit 1
+    }
+    if [ -n "$1" ]; then
+        grep -i "$1" "$INDEX_FILE"
+    else
+        cat "$INDEX_FILE"
     fi
 }
 
 install_package() {
     SRC="$1"
-    
-    [ -z "$SRC" ] && {
-        echo "❌ Error: Package name or URL required"
-        exit 1
-    }
 
-    # If it's a URL, download it
+    # Se è un URL completo
     if echo "$SRC" | grep -qE '^https?://'; then
         PKG_NAME=$(basename "$SRC" .tar.gz)
         PKG_FILE="$PKG_DIR/$PKG_NAME.tar.gz"
-        echo "📥 Downloading $SRC..."
+        echo "Downloading $SRC..."
         wget -q "$SRC" -O "$PKG_FILE" || {
-            echo "❌ Download failed."
+            echo "Download failed."
             exit 1
         }
     else
+        # Usa repo
         PKG_NAME="$SRC"
         PKG_FILE="$PKG_DIR/$PKG_NAME.tar.gz"
-    fi
-
-    if [ ! -f "$PKG_FILE" ]; then
-        echo "❌ Package not found: $PKG_FILE"
-        exit 1
+        REPO_URL=$(cat "$REPO_FILE")
+        echo "Downloading $PKG_NAME from repo..."
+        wget -q "$REPO_URL/$PKG_NAME.tar.gz" -O "$PKG_FILE" || {
+            echo "Package not found in repo."
+            exit 1
+        }
     fi
 
     if [ -f "$DB_DIR/$PKG_NAME.files" ]; then
-        echo "⚠️  Package '$PKG_NAME' already installed."
+        echo "Package '$PKG_NAME' already installed."
         exit 0
     fi
 
-    echo "📦 Installing $PKG_NAME..."
+    echo "Installing $PKG_NAME..."
     TMP_DIR=$(mktemp -d)
-
-    # Extract and verify
-    tar -xzf "$PKG_FILE" -C "$TMP_DIR" 2>/dev/null || {
-        echo "❌ Extraction failed."
+    tar -xzf "$PKG_FILE" -C "$TMP_DIR" || {
+        echo "Extraction failed."
         rm -rf "$TMP_DIR"
         exit 1
     }
 
-    # Log files before installation (with relative paths)
-    (cd "$TMP_DIR" && find . -type f -not -path "./.*") | sed 's|^\./||' > "$DB_DIR/$PKG_NAME.files"
-    
-    # Install files
-    (cd "$TMP_DIR" && tar -cf - .) | (cd / && tar -xf - 2>/dev/null)
-
+    find "$TMP_DIR" -type f | sed "s|$TMP_DIR||" > "$DB_DIR/$PKG_NAME.files"
+    (cd "$TMP_DIR" && tar -cf - .) | (cd / && tar -xf -)
     rm -rf "$TMP_DIR"
-    echo "✅ Package '$PKG_NAME' installed successfully."
+    echo "Installed $PKG_NAME."
 }
 
 remove_package() {
     PKG_NAME="$1"
     DB_FILE="$DB_DIR/$PKG_NAME.files"
-
-    [ -z "$PKG_NAME" ] && {
-        echo "❌ Error: Package name required"
-        exit 1
-    }
-
     if [ ! -f "$DB_FILE" ]; then
-        echo "❌ Package '$PKG_NAME' is not installed."
+        echo "Package '$PKG_NAME' is not installed."
         exit 1
     fi
-
-    echo "🗑️  Removing package '$PKG_NAME'..."
-    
-    # Count files to remove
-    TOTAL_FILES=$(wc -l < "$DB_FILE")
-    REMOVED=0
-    
-    # Remove files (they are stored as relative paths)
-    while IFS= read -r file; do
-        # Skip empty lines
-        [ -z "$file" ] && continue
-        
-        FULL_PATH="/$file"
-        if [ -f "$FULL_PATH" ]; then
-            rm -f "$FULL_PATH" 2>/dev/null && REMOVED=$((REMOVED + 1))
-        elif [ -d "$FULL_PATH" ]; then
-            # Only remove directory if empty
-            rmdir "$FULL_PATH" 2>/dev/null && REMOVED=$((REMOVED + 1))
-        fi
+    echo "Removing $PKG_NAME..."
+    while read -r file; do
+        rm -f "/${file#*/}" 2>/dev/null
     done < "$DB_FILE"
-
-    # Remove package database entry
     rm -f "$DB_FILE"
-    
-    echo "✅ Package '$PKG_NAME' removed ($REMOVED/$TOTAL_FILES files)."
+    echo "Package '$PKG_NAME' removed."
 }
 
-# Main script logic
-case "${1:-help}" in
+[ $# -lt 1 ] && usage
+
+case "$1" in
     list) list_packages ;;
-    install)
-        [ $# -ne 2 ] && usage
-        install_package "$2"
-        ;;
-    remove)
-        [ $# -ne 2 ] && usage  
-        remove_package "$2"
-        ;;
-    help) usage help ;;
+    install) [ $# -ne 2 ] && usage; install_package "$2" ;;
+    remove) [ $# -ne 2 ] && usage; remove_package "$2" ;;
+    update) update_repo ;;
+    search) search_repo "$2" ;;
     *) usage ;;
 esac
 EOF
     chmod +x "$BUSYBOX_INSTALL_DIR/usr/bin/manzolopkg"
+
+    print_step "Creating local ManzoloPkg repo..."
+
+    # Cartella repo
+    mkdir -p "$BUSYBOX_INSTALL_DIR/www/repo"
+
+    # --- 1. Pacchetto hello-world ---
+    PKG_TMP=$(mktemp -d)
+
+    # Struttura pacchetto
+    mkdir -p "$PKG_TMP/usr/bin"
+    cat > "$PKG_TMP/usr/bin/hello" << 'EOF'
+    #!/bin/sh
+    echo "🚀 Benvenuto su Manzolo Linux!"
+    echo "Creato con amore da Manzolo Industries™"
+EOF
+    chmod +x "$PKG_TMP/usr/bin/hello"
+
+    # Creiamo il tar.gz del pacchetto
+    tar -czf "$BUSYBOX_INSTALL_DIR/www/repo/hello-world.tar.gz" -C "$PKG_TMP" .
+
+    # Pulizia
+    rm -rf "$PKG_TMP"
+
+    # --- 2. index.txt ---
+    echo "hello-world" > "$BUSYBOX_INSTALL_DIR/www/repo/index.txt"
+
+    print_success "Local repo created at /www/repo/"
 
     # Fixed rcS script with ManzoloPkg help display
     cat > etc/init.d/rcS << 'EOF'
