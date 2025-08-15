@@ -28,13 +28,13 @@ create_filesystem() {
     
     print_step "Creating filesystem structure and essential files..."
     
-    # Create essential directories con permessi corretti
+    # Create essential directories with correct permissions
     mkdir -p {dev,proc,sys,tmp,var/log,var/run,etc,root,home,usr/lib,usr/share}
-    mkdir -p www/cgi-bin  # Directory per httpd
+    mkdir -p www/cgi-bin  # Directory for httpd
     
-    # Imposta i permessi corretti
+    # Set correct permissions
     chmod 755 {dev,proc,sys,var,etc,root,home,usr}
-    chmod 1777 tmp  # sticky bit per /tmp
+    chmod 1777 tmp  # sticky bit for /tmp
     chmod 755 www www/cgi-bin
     
     # Create device nodes
@@ -49,7 +49,7 @@ create_filesystem() {
     # Create basic configuration files
     print_step "Creating configuration files..."
     
-    # /etc/passwd - AGGIUNGI UTENTE www-data
+    # /etc/passwd - ADD www-data user
     cat > etc/passwd << 'EOF'
 root:x:0:0:root:/root:/bin/sh
 daemon:x:1:1:daemon:/usr/sbin:/bin/false
@@ -59,7 +59,7 @@ www-data:x:33:33:www-data:/var/www:/bin/false
 nobody:x:65534:65534:nobody:/nonexistent:/bin/false
 EOF
     
-    # /etc/group - AGGIUNGI GRUPPO www-data
+    # /etc/group - ADD www-data group
     cat > etc/group << 'EOF'
 root:x:0:
 daemon:x:1:
@@ -101,7 +101,7 @@ users:x:100:
 nogroup:x:65534:
 EOF
     
-    # /etc/shadow (basic) - AGGIUNGI www-data
+    # /etc/shadow (basic) - ADD www-data
     cat > etc/shadow << 'EOF'
 root:*:19000:0:99999:7:::
 daemon:*:19000:0:99999:7:::
@@ -144,10 +144,10 @@ EOF
 ::restart:/sbin/init
 EOF
 
-    # === CONFIGURAZIONE HTTPD ===
+    # === HTTPD CONFIGURATION ===
     print_step "Creating httpd configuration..."
     
-    # File di configurazione httpd (opzionale ma utile per debug)
+    # httpd configuration file (optional but useful for debugging)
     cat > etc/httpd.conf << 'EOF'
 # BusyBox httpd configuration
 # Uncomment and modify as needed
@@ -174,27 +174,29 @@ EOF
 .ico:image/x-icon
 EOF
 
-    # Script di test CGI
+    # CGI test script
     cat > www/cgi-bin/test.cgi << 'EOF'
 #!/bin/sh
 echo "Content-Type: text/html"
 echo ""
-echo "<html><head><title>CGI Test</title></head><body>"
-echo "<h1>CGI funziona!</h1>"
+echo "<html><head><meta charset="UTF-8">
+<title>CGI Test</title></head><body>"
+echo "<h1>CGI works!</h1>"
 echo "<p>Server: $SERVER_SOFTWARE</p>"
-echo "<p>Data: $(date)</p>"
-echo "<p>IP Client: $REMOTE_ADDR</p>"
+echo "<p>Date: $(date)</p>"
+echo "<p>Client IP: $REMOTE_ADDR</p>"
 echo "<p>User Agent: $HTTP_USER_AGENT</p>"
 echo "</body></html>"
 EOF
     chmod +x www/cgi-bin/test.cgi
 
-    # Web server content migliorato
+    # Improved web server content
     cat > www/index.html << 'EOF'
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Benvenuto in Manzolo Linux</title>
+    <meta charset="UTF-8">
+    <title>Welcome to Manzolo Linux</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
         .container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
@@ -209,35 +211,35 @@ EOF
 </head>
 <body>
     <div class="container">
-        <h1>🚀 Manzolo Linux è online!</h1>
+        <h1>🚀 Manzolo Linux is online!</h1>
         
         <div class="status">
-            <strong>✅ Sistema operativo:</strong> Manzolo Linux v2.0<br>
-            <strong>✅ Web server:</strong> BusyBox httpd<br>
-            <strong>✅ Data/ora:</strong> <script>document.write(new Date().toLocaleString());</script>
+            <strong>✅ Operating System:</strong> Manzolo Linux v2.0<br>
+            <strong>✅ Web Server:</strong> BusyBox httpd<br>
+            <strong>✅ Date/Time:</strong> <script>document.write(new Date().toLocaleString());</script>
         </div>
         
-        <h2>🔧 Test e Funzionalità</h2>
+        <h2>🔧 Tests and Features</h2>
         <ul>
-            <li>📄 <a href="/cgi-bin/test.cgi">Test script CGI</a></li>
-            <li>🔍 <a href="/test404.html">Test pagina 404</a></li>
+            <li>📄 <a href="/cgi-bin/test.cgi">Test CGI script</a></li>
+            <li>🔍 <a href="/test404.html">Test 404 page</a></li>
         </ul>
         
         <div class="info">
-            <h3>💡 Come utilizzare il web server:</h3>
+            <h3>💡 How to use the web server:</h3>
             <ul>
-                <li>Documenti web: <code>/www/</code></li>
-                <li>Script CGI: <code>/www/cgi-bin/</code></li>
-                <li>Log del server: visibili nella console</li>
+                <li>Web documents: <code>/www/</code></li>
+                <li>CGI scripts: <code>/www/cgi-bin/</code></li>
+                <li>Server logs: visible in the console</li>
             </ul>
         </div>
         
         <div class="info">
-            <h3>🌐 Comandi di rete utili:</h3>
+            <h3>🌐 Useful network commands:</h3>
             <ul>
-                <li><code>ip addr show</code> - Mostra interfacce di rete</li>
-                <li><code>ping 8.8.8.8</code> - Testa la connettività</li>
-                <li><code>wget http://localhost/</code> - Testa il web server</li>
+                <li><code>ip addr show</code> - Show network interfaces</li>
+                <li><code>ping 8.8.8.8</code> - Test connectivity</li>
+                <li><code>wget http://localhost/</code> - Test the web server</li>
             </ul>
         </div>
     </div>
@@ -245,12 +247,12 @@ EOF
 </html>
 EOF
 
-    # Pagina di errore personalizzata
+    # Custom error page
     cat > www/404.html << 'EOF'
 <!DOCTYPE html>
 <html>
 <head>
-    <title>404 - Pagina non trovata</title>
+    <title>404 - Page Not Found</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 40px; text-align: center; background: #f5f5f5; }
         .error { background: #ffe6e6; padding: 30px; border-radius: 10px; display: inline-block; }
@@ -259,15 +261,15 @@ EOF
 </head>
 <body>
     <div class="error">
-        <h1>404 - Pagina non trovata</h1>
-        <p>La risorsa richiesta non è disponibile.</p>
-        <p><a href="/">Torna alla home</a></p>
+        <h1>404 - Page Not Found</h1>
+        <p>The requested resource is not available.</p>
+        <p><a href="/">Back to home</a></p>
     </div>
 </body>
 </html>
 EOF
 
-    # udhcpc - Script migliorato (invariato dal tuo codice originale)
+    # udhcpc - Improved script (unchanged from your original code)
     mkdir -p etc/udhcpc
     cat > etc/udhcpc/default.script << 'EOF'
 #!/bin/sh
@@ -333,7 +335,7 @@ echo "System init done."
 EOF
     chmod +x etc/init.d/rcS
     
-    # Imposta proprietà e permessi corretti per www
+    # Set correct ownership and permissions for www
     chown -R root:root www/ 2>/dev/null || true
     chmod -R 755 www/
     chmod 755 www/cgi-bin/*.cgi
