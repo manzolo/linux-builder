@@ -323,28 +323,28 @@ exit 0
 EOF
     chmod +x etc/udhcpc/default.script
 
-    print_step "Creating Hello World package..."
+    print_step "Creating Manzolo Hello World package..."
 
     # Temporary directory for the package
     PKG_TMP=$(mktemp -d)
 
     # Package structure
     mkdir -p "$PKG_TMP/usr/bin"
-    cat > "$PKG_TMP/usr/bin/hello" << 'EOF'
+    cat > "$PKG_TMP/usr/bin/manzolo-hello-world" << 'EOF'
 #!/bin/sh
 echo "🚀 Welcome to Manzolo Linux!"
 echo "Crafted with love by Manzolo Industries™"
 EOF
-    chmod +x "$PKG_TMP/usr/bin/hello"
+    chmod +x "$PKG_TMP/usr/bin/manzolo-hello-world"
 
     # Create the tar.gz archive
-    tar -czf "$BUSYBOX_INSTALL_DIR/www/hello-world.tar.gz" -C "$PKG_TMP" .
-    tar -czf "$BUSYBOX_INSTALL_DIR/manzolopkg/packages/hello-world.tar.gz" -C "$PKG_TMP" .
+    tar -czf "$BUSYBOX_INSTALL_DIR/www/manzolo-hello-world.tar.gz" -C "$PKG_TMP" .
+    tar -czf "$BUSYBOX_INSTALL_DIR/manzolopkg/packages/manzolo-hello-world.tar.gz" -C "$PKG_TMP" .
 
     # Cleanup
     rm -rf "$PKG_TMP"
 
-    print_success "Hello World package ready at /www/hello-world.tar.gz"
+    print_success "Hello World package ready at /www/manzolo-hello-world.tar.gz"
 
     # Create package manager directories first
     mkdir -p "$BUSYBOX_INSTALL_DIR/manzolopkg/packages"
@@ -484,26 +484,26 @@ EOF
     # Cartella repo
     mkdir -p "$BUSYBOX_INSTALL_DIR/www/repo"
 
-    # --- 1. Pacchetto hello-world ---
+    # --- 1. Pacchetto manzolo-hello-world ---
     PKG_TMP=$(mktemp -d)
 
     # Struttura pacchetto
     mkdir -p "$PKG_TMP/usr/bin"
-    cat > "$PKG_TMP/usr/bin/hello" << 'EOF'
+    cat > "$PKG_TMP/usr/bin/manzolo-hello-world" << 'EOF'
     #!/bin/sh
     echo "🚀 Benvenuto su Manzolo Linux!"
     echo "Creato con amore da Manzolo Industries™"
 EOF
-    chmod +x "$PKG_TMP/usr/bin/hello"
+    chmod +x "$PKG_TMP/usr/bin/manzolo-hello-world"
 
     # Creiamo il tar.gz del pacchetto
-    tar -czf "$BUSYBOX_INSTALL_DIR/www/repo/hello-world.tar.gz" -C "$PKG_TMP" .
+    tar -czf "$BUSYBOX_INSTALL_DIR/www/repo/manzolo-hello-world.tar.gz" -C "$PKG_TMP" .
 
     # Pulizia
     rm -rf "$PKG_TMP"
 
     # --- 2. index.txt ---
-    echo "hello-world" > "$BUSYBOX_INSTALL_DIR/www/repo/index.txt"
+    echo "manzolo-hello-world" > "$BUSYBOX_INSTALL_DIR/www/repo/index.txt"
 
     print_success "Local repo created at /www/repo/"
 
@@ -546,7 +546,7 @@ manzolopkg help
 
 echo ""
 echo "💡 Quick start commands:"
-echo "   • manzolopkg install hello-world  (install sample package)"
+echo "   • manzolopkg install manzolo-hello-world  (install sample package)"
 echo "   • httpd -p 8080 -h /www           (start web server)" 
 echo "   • ip addr show                    (check network)"
 echo "   • ping 8.8.8.8                   (test connectivity)"
