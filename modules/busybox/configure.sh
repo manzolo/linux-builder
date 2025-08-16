@@ -205,7 +205,7 @@ apply_desktop_config() {
     # Abilita la compilazione statica
     sed -i 's/# CONFIG_STATIC is not set/CONFIG_STATIC=y/' "$config_file"
     
-    # === CONFIGURAZIONE HTTPD CORRETTA ===
+    # === CONFIGURAZIONE HTTPD ===
     # Abilita httpd e le sue funzionalità essenziali
     sed -i 's/# CONFIG_HTTPD is not set/CONFIG_HTTPD=y/' "$config_file"
     sed -i 's/# CONFIG_FEATURE_HTTPD_RANGES is not set/CONFIG_FEATURE_HTTPD_RANGES=y/' "$config_file"
@@ -220,7 +220,7 @@ apply_desktop_config() {
     sed -i 's/# CONFIG_FEATURE_HTTPD_PROXY is not set/CONFIG_FEATURE_HTTPD_PROXY=y/' "$config_file"
     sed -i 's/# CONFIG_FEATURE_HTTPD_GZIP is not set/CONFIG_FEATURE_HTTPD_GZIP=y/' "$config_file"
     
-    # === CONFIGURAZIONE RETE CORRETTA ===
+    # === CONFIGURAZIONE RETE ===
     # udhcpc client - configurazione completa
     sed -i 's/# CONFIG_UDHCPC is not set/CONFIG_UDHCPC=y/' "$config_file"
     sed -i 's/# CONFIG_FEATURE_UDHCPC_ARPING is not set/CONFIG_FEATURE_UDHCPC_ARPING=y/' "$config_file"
@@ -242,6 +242,11 @@ apply_desktop_config() {
     sed -i 's/# CONFIG_FEATURE_WGET_STATUSBAR is not set/CONFIG_FEATURE_WGET_STATUSBAR=y/' "$config_file"
     sed -i 's/# CONFIG_FEATURE_WGET_AUTHENTICATION is not set/CONFIG_FEATURE_WGET_AUTHENTICATION=y/' "$config_file"
     
+    # TTY
+    sed -i 's/# CONFIG_ASH_JOB_CONTROL is not set/CONFIG_ASH_JOB_CONTROL=y/' "$config_file"
+    sed -i 's/# CONFIG_FEATURE_USE_TERMIOS is not set/CONFIG_FEATURE_USE_TERMIOS=y/' "$config_file"
+    sed -i 's/# CONFIG_FEATURE_SH_STANDALONE is not set/CONFIG_FEATURE_SH_STANDALONE=y/' "$config_file"
+
     # Abilita le altre funzionalità desktop
     for feature in \
         ASH_GETOPTS \

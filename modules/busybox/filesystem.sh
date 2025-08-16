@@ -91,11 +91,37 @@ EOF
     cat > etc/inittab << 'EOF'
 # System initialization
 ::sysinit:/etc/init.d/rcS
-::askfirst:-/bin/sh
+
+# Main console (tty1) - always active with login prompt
+tty1::respawn:/sbin/getty 38400 tty1 linux
+
+# Additional virtual consoles (CTRL+ALT+F2 through F6)
+tty2::askfirst:/sbin/getty 38400 tty2 linux
+tty3::askfirst:/sbin/getty 38400 tty3 linux
+tty4::askfirst:/sbin/getty 38400 tty4 linux
+tty5::askfirst:/sbin/getty 38400 tty5 linux
+tty6::askfirst:/sbin/getty 38400 tty6 linux
+
+# Additional TTYs (F7-F12) - available on demand
+tty7::askfirst:/sbin/getty 38400 tty7 linux
+tty8::askfirst:/sbin/getty 38400 tty8 linux
+tty9::askfirst:/sbin/getty 38400 tty9 linux
+tty10::askfirst:/sbin/getty 38400 tty10 linux
+tty11::askfirst:/sbin/getty 38400 tty11 linux
+tty12::askfirst:/sbin/getty 38400 tty12 linux
+
+# Serial console
+ttyS0::askfirst:/sbin/getty -L ttyS0 115200 vt100
+
+# System control sequences
 ::ctrlaltdel:/sbin/reboot
+::restart:/sbin/init
+
+# Graceful shutdown sequence
+::shutdown:/bin/echo "System is going down..."
 ::shutdown:/sbin/swapoff -a
 ::shutdown:/bin/umount -a -r
-::restart:/sbin/init
+::shutdown:/sbin/halt -f
 EOF
 }
 
@@ -133,7 +159,7 @@ create_filesystem() {
     
     # Core filesystem setup
     setup_base_filesystem || return 1
-    create_directory_structure
+    create_directory_structure || return 1
     create_device_nodes
     
     # System configuration
@@ -141,12 +167,14 @@ create_filesystem() {
     create_network_config
     create_system_config
     create_init_script
-    
+
     # Services setup
     create_web_server_config
     create_package_manager
     create_sample_packages
     
+    create_tty_test_script
+
     # Final touches
     set_permissions
     
