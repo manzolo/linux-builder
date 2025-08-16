@@ -291,19 +291,19 @@ echo
 # Welcome message
 cat << 'WELCOME'
 ╔══════════════════════════════════════════════════════════════╗
-║                  🎉 MANZOLO LINUX v2.0                       ║
+║                  🎉 MANZOLO LINUX                             ║
 ║                                                              ║
 ║ Welcome to your custom Linux distribution!                   ║
 ║                                                              ║
-║ 💡 Network commands:                                         ║
-║ • ip addr show       - Show network interfaces              ║
-║ • ping 8.8.8.8       - Test connectivity                    ║
-║ • udhcpc -i eth0     - Renew DHCP lease                     ║
+║ 💡 Network commands:                                          ║
+║ • ip addr show       - Show network interfaces               ║
+║ • ping 8.8.8.8       - Test connectivity                     ║
+║ • udhcpc -i eth0     - Renew DHCP lease                      ║
 ║ • route              - Show routing table                    ║
 ║                                                              ║
-║ 🚀 Type 'busybox --list' to see all available commands      ║
+║ 🚀 Type 'busybox --list' to see all available commands        ║
 ║                                                              ║
-║ 🎯 Have fun exploring your system!                          ║
+║ 🎯 Have fun exploring your system!                            ║
 ╚══════════════════════════════════════════════════════════════╝
 
 WELCOME
