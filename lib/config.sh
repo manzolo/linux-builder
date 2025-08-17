@@ -24,11 +24,8 @@ init_environment() {
     # Create necessary directories
     mkdir -p "$BUILD_DIR" "$CONFIG_DIR" "$CONFIG_DIR/presets" "$CONFIG_DIR/modules"
 
-    # Load or create main configuration
+    # Load configuration (creates default if needed)
     load_config
-
-    # Save the loaded/default configuration back to the file
-    save_config
 
     print_info "Environment initialized successfully"
 }
@@ -36,18 +33,123 @@ init_environment() {
 # Load configuration
 load_config() {
     if [[ -f "$MAIN_CONFIG_FILE" ]]; then
+        # Load existing config
         source "$MAIN_CONFIG_FILE"
         print_success "Configuration loaded from $MAIN_CONFIG_FILE"
     else
+        # Create and load default config
         create_default_config
+        source "$MAIN_CONFIG_FILE"
+        print_success "Default configuration created and loaded"
     fi
     
-    # Set defaults if not defined
+    # Apply defaults for any missing values
+    apply_defaults
+}
+
+# Apply default values to all configuration variables
+apply_defaults() {
+    # Software versions
     KERNEL_VERSION=${KERNEL_VERSION:-$DEFAULT_KERNEL_VERSION}
     BUSYBOX_VERSION=${BUSYBOX_VERSION:-$DEFAULT_BUSYBOX_VERSION}
+    
+    # Architecture settings
     KERNEL_ARCH=${KERNEL_ARCH:-$DEFAULT_KERNEL_ARCH}
     QEMU_SYSTEM=${QEMU_SYSTEM:-$DEFAULT_QEMU_SYSTEM}
     CROSS_COMPILE=${CROSS_COMPILE:-$DEFAULT_CROSS_COMPILE}
+    
+    # Build settings
+    PARALLEL_JOBS=${PARALLEL_JOBS:-$(nproc)}
+    COMPRESSION_LEVEL=${COMPRESSION_LEVEL:-9}
+    DEBUG_MODE=${DEBUG_MODE:-false}
+    
+    # Paths
+    DOWNLOAD_DIR=${DOWNLOAD_DIR:-$BUILD_DIR/downloads}
+    KERNEL_SOURCE_DIR=${KERNEL_SOURCE_DIR:-$BUILD_DIR/kernel}
+    BUSYBOX_SOURCE_DIR=${BUSYBOX_SOURCE_DIR:-$BUILD_DIR/busybox}
+    
+    # ISO settings
+    ISO_LABEL=${ISO_LABEL:-"Manzolo Linux"}
+    ISO_PUBLISHER=${ISO_PUBLISHER:-"Manzolo Project"}
+    ISO_VERSION=${ISO_VERSION:-"1.0"}
+}
+
+# Create default configuration
+create_default_config() {
+    print_warning "Creating default configuration..."
+    
+    # Ensure all defaults are set before saving
+    apply_defaults
+    
+    cat > "$MAIN_CONFIG_FILE" << EOF
+# Manzolo Linux Builder - Main Configuration
+# Generated on $(date)
+
+# Software versions
+KERNEL_VERSION="$KERNEL_VERSION"
+BUSYBOX_VERSION="$BUSYBOX_VERSION"
+
+# Architecture settings
+KERNEL_ARCH="$KERNEL_ARCH"
+QEMU_SYSTEM="$QEMU_SYSTEM"
+CROSS_COMPILE="$CROSS_COMPILE"
+
+# Build settings
+PARALLEL_JOBS="$PARALLEL_JOBS"
+COMPRESSION_LEVEL="$COMPRESSION_LEVEL"
+DEBUG_MODE="$DEBUG_MODE"
+
+# Paths
+BUILD_DIR="$BUILD_DIR"
+DOWNLOAD_DIR="$DOWNLOAD_DIR"
+KERNEL_SOURCE_DIR="$KERNEL_SOURCE_DIR"
+BUSYBOX_SOURCE_DIR="$BUSYBOX_SOURCE_DIR"
+
+# ISO settings
+ISO_LABEL="$ISO_LABEL"
+ISO_PUBLISHER="$ISO_PUBLISHER"
+ISO_VERSION="$ISO_VERSION"
+EOF
+}
+
+# Save configuration
+save_config() {
+    print_step "Saving configuration..."
+    
+    # Ensure all defaults are applied before saving
+    apply_defaults
+    
+    cat > "$MAIN_CONFIG_FILE" << EOF
+# Manzolo Linux Builder - Main Configuration
+# Last modified: $(date)
+
+# Software versions
+KERNEL_VERSION="$KERNEL_VERSION"
+BUSYBOX_VERSION="$BUSYBOX_VERSION"
+
+# Architecture settings
+KERNEL_ARCH="$KERNEL_ARCH"
+QEMU_SYSTEM="$QEMU_SYSTEM"
+CROSS_COMPILE="$CROSS_COMPILE"
+
+# Build settings
+PARALLEL_JOBS="$PARALLEL_JOBS"
+COMPRESSION_LEVEL="$COMPRESSION_LEVEL"
+DEBUG_MODE="$DEBUG_MODE"
+
+# Paths
+BUILD_DIR="$BUILD_DIR"
+DOWNLOAD_DIR="$DOWNLOAD_DIR"
+KERNEL_SOURCE_DIR="$KERNEL_SOURCE_DIR"
+BUSYBOX_SOURCE_DIR="$BUSYBOX_SOURCE_DIR"
+
+# ISO settings
+ISO_LABEL="$ISO_LABEL"
+ISO_PUBLISHER="$ISO_PUBLISHER"
+ISO_VERSION="$ISO_VERSION"
+EOF
+    
+    print_success "Configuration saved to $MAIN_CONFIG_FILE"
 }
 
 # Create default configuration
@@ -85,44 +187,6 @@ ISO_VERSION="1.0"
 EOF
     
     print_success "Default configuration created at $MAIN_CONFIG_FILE"
-}
-
-# Save configuration
-save_config() {
-    print_step "Saving configuration..."
-    
-    cat > "$MAIN_CONFIG_FILE" << EOF
-# Manzolo Linux Builder - Main Configuration
-# Last modified: $(date)
-
-# Software versions
-KERNEL_VERSION="$KERNEL_VERSION"
-BUSYBOX_VERSION="$BUSYBOX_VERSION"
-
-# Architecture settings
-KERNEL_ARCH="$KERNEL_ARCH"
-QEMU_SYSTEM="$QEMU_SYSTEM"
-CROSS_COMPILE="$CROSS_COMPILE"
-
-# Build settings
-PARALLEL_JOBS="${PARALLEL_JOBS:-\$(nproc)}"
-COMPRESSION_LEVEL="${COMPRESSION_LEVEL:-9}"
-DEBUG_MODE="${DEBUG_MODE:-false}"
-
-# Paths
-BUILD_DIR="$BUILD_DIR"
-DOWNLOAD_DIR="${DOWNLOAD_DIR:-$BUILD_DIR/downloads}"
-KERNEL_SOURCE_DIR="${KERNEL_SOURCE_DIR:-$BUILD_DIR/kernel-source}"
-BUSYBOX_SOURCE_DIR="${BUSYBOX_SOURCE_DIR:-$BUILD_DIR/busybox-source}"
-
-# ISO settings
-ISO_LABEL="${ISO_LABEL:-Manzolo Linux}"
-ISO_PUBLISHER="${ISO_PUBLISHER:-Manzolo Project}"
-ISO_VERSION="${ISO_VERSION:-1.0}"
-EOF
-    source "$MAIN_CONFIG_FILE"
-    
-    print_success "Configuration saved successfully"
 }
 
 # Configuration wizard
