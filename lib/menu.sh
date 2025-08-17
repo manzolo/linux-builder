@@ -65,7 +65,7 @@ main_menu() {
         show_main_menu_options
 
         local choice
-        read -rp "$(echo -e "\n${CYAN}Select option [1-10]: ${NC}")" choice
+        read -rp "$(echo -e "\n${CYAN}Select option [1-12]: ${NC}")" choice
 
         case $choice in
             1) unattended_build ;;                     # Sposta la build automatica in cima
