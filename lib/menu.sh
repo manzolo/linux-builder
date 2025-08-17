@@ -22,6 +22,7 @@ source "$SCRIPT_DIR/modules/busybox.sh"
 source "$SCRIPT_DIR/modules/iso.sh"
 source "$SCRIPT_DIR/modules/qemu.sh"
 source "$SCRIPT_DIR/modules/system.sh"
+source "$SCRIPT_DIR/modules/unattended.sh"
 
 # Show welcome screen
 show_welcome() {
@@ -67,19 +68,20 @@ main_menu() {
         read -rp "$(echo -e "\n${CYAN}Select option [1-10]: ${NC}")" choice
 
         case $choice in
-            1) check_prerequisites_interactive ;;
-            2) kernel_menu ;;
-            3) busybox_menu ;;
-            4) test_menu ;;
-            5) iso_menu ;;
-            6) system_info_menu ;;
+            1) unattended_build ;;                     # Sposta la build automatica in cima
+            2) check_prerequisites_interactive ;;      # Sposta il check dei prerequisiti
+            3) kernel_menu ;;                          # Sposta gli altri menu
+            4) busybox_menu ;;
+            5) test_menu ;;
+            6) iso_menu ;;
             7) config_menu ;;
             8) utilities_menu ;;
-            9) help_menu ;;
-            10) about_menu ;;
-            11) exit_program ;;
+            9) system_info_menu ;;
+            10) help_menu ;;
+            11) about_menu ;;
+            12) exit_program ;;
             *)
-                print_error "Invalid option. Please select 1-11."
+                print_error "Invalid option. Please select 1-12."
                 read -p "Press ENTER to continue..."
                 ;;
         esac
@@ -104,18 +106,22 @@ EOF
 show_main_menu_options() {
     cat << 'EOF'
 
-    🔧 BUILD OPERATIONS:
+    🚀 UNATTENDED BUILD:
     ┌─────────────────────────────────────────────────────────────────────────────┐
-    │  1. 🔍 Check System Prerequisites     │  2. 🐧 Kernel Management            │
-    │  3. 📦 BusyBox Management             │  4. 🖥️  System Testing               │
-    │  5. 💿 ISO Creation & Packaging       │                                     │
+    │  1. 🚀 Unattended Full Build          │  2. 🔍 Check System Prerequisites   │
+    └─────────────────────────────────────────────────────────────────────────────┘
+
+    🔧 MANUAL BUILD:
+    ┌─────────────────────────────────────────────────────────────────────────────┐
+    │  3. 🐧 Kernel Management              │  4. 📦 BusyBox Management           │
+    │  5. 🖥️  System Testing                 │  6. 💿 ISO Creation & Packaging     │
     └─────────────────────────────────────────────────────────────────────────────┘
 
     🛠️  SYSTEM & UTILITIES:
     ┌─────────────────────────────────────────────────────────────────────────────┐
-    │  6. 📊 System Information             │  7. ⚙️  Configuration                │
-    │  8. 🧹 Utilities & Cleanup            │  9. ❓ Help & Documentation         │
-    │ 10. ℹ️  About                          │ 11. ❌ Exit                         │
+    │  7. ⚙️  Configuration                  │   8. 🧹 Utilities & Cleanup         │
+    │  9. 📊 System Information             │  10. ❓ Help & Documentation        │
+    │ 11. ℹ️  About                          │  12. ❌ Exit                        │
     └─────────────────────────────────────────────────────────────────────────────┘
 EOF
 }
@@ -180,12 +186,10 @@ busybox_menu() {
         
         1. 📦 Prepare BusyBox Source
         2. ⚙️  Configure BusyBox
-        3. 🏗️  Compile BusyBox
-        4. 📁 Create Filesystem
-        5. 📦 Generate Initramfs
-        6. 📊 BusyBox Information
-        7. 🧹 Clean BusyBox Build
-        8. ⬅️  Return to Main Menu
+        3. 🏗️  Compile BusyBox, create filesystem, generate initramfs
+        4. 📊 BusyBox Information
+        5. 🧹 Clean BusyBox Build
+        6. ⬅️  Return to Main Menu
         
 EOF
         
@@ -194,12 +198,10 @@ EOF
         case $choice in
             1) prepare_busybox ;;
             2) configure_busybox ;;
-            3) compile_busybox ;;
-            4) create_filesystem ;;
-            5) generate_initramfs ;;
-            6) show_busybox_info ;;
-            7) clean_busybox ;;
-            8) break ;;
+            3) compile_busybox && create_filesystem && generate_initramfs ;;
+            4) show_busybox_info ;;
+            5) clean_busybox ;;
+            6) break ;;
             *) 
                 print_error "Invalid option"
                 read -p "Press ENTER to continue..."
