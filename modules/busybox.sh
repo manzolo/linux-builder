@@ -6,7 +6,6 @@
 
 # BusyBox URLs and paths
 BUSYBOX_BASE_URL="https://busybox.net/downloads"
-BUSYBOX_SOURCE_DIR="$BUILD_DIR/busybox-source"
 BUSYBOX_BUILD_DIR="$BUILD_DIR/busybox-build"
 BUSYBOX_INSTALL_DIR="$BUILD_DIR/rootfs"
 

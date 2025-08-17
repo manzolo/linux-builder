@@ -23,10 +23,13 @@ MAIN_CONFIG_FILE="$CONFIG_DIR/manzolo.conf"
 init_environment() {
     # Create necessary directories
     mkdir -p "$BUILD_DIR" "$CONFIG_DIR" "$CONFIG_DIR/presets" "$CONFIG_DIR/modules"
-    
+
     # Load or create main configuration
     load_config
-    
+
+    # Save the loaded/default configuration back to the file
+    save_config
+
     print_info "Environment initialized successfully"
 }
 
@@ -117,6 +120,7 @@ ISO_LABEL="${ISO_LABEL:-Manzolo Linux}"
 ISO_PUBLISHER="${ISO_PUBLISHER:-Manzolo Project}"
 ISO_VERSION="${ISO_VERSION:-1.0}"
 EOF
+    source "$MAIN_CONFIG_FILE"
     
     print_success "Configuration saved successfully"
 }
