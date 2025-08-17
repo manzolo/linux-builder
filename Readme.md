@@ -85,11 +85,11 @@ These images show the key steps of the compilation process and the final result.
 ### Main Menu
 The initial screen showing all available options.
 <img width="810" height="453" alt="Main Menu" src="https://github.com/user-attachments/assets/5b9e3140-7cad-4ac4-b9bf-42b9c1b533ea" />
-<img width="804" height="459" alt="Main Menu 2" src="https://github.com/user-attachments/assets/b02f6b14-2e2c-457a-a7ca-73530731e6af" />
+<img width="854" height="502" alt="Main Menu 2" src="https://github.com/user-attachments/assets/f291fc6a-ec0a-4def-bcc2-121aea9cfaeb" />
 
 ### Kernel Configuration
 The kernel configuration menu, where you can customize options.
-<img width="810" height="453" alt="Kernel Configuration" src="https://github.com/user-attachments/assets/4caf29fc-22ac-4912-ae7a-c598cb305042" />
+<img width="690" height="330" alt="Kernel Configuration 1" src="https://github.com/user-attachments/assets/f25154c8-7236-4202-900f-ee6c7c262dc5" />
 <img width="804" height="459" alt="Kernel Configuration 2" src="https://github.com/user-attachments/assets/bd4d0177-ddf3-4c1a-9da7-f81d85412d71" />
 <img width="804" height="459" alt="Kernel Configuration 3" src="https://github.com/user-attachments/assets/80ea9c55-2805-479d-92ec-45f61106fee1" />
 <img width="804" height="459" alt="Kernel Configuration 4" src="https://github.com/user-attachments/assets/200e51ae-1660-4ba5-92cf-d75f6ee91ab7" />
@@ -108,4 +108,4 @@ The GRUB bootloader of the final ISO image.
 <img width="810" height="453" alt="Grub" src="https://github.com/user-attachments/assets/9e2abbe7-ce28-4bc8-a9e6-c93cf20429b1" />
 
 ### Statistics
-<img width="810" height="453" alt="Statistics" src="https://github.com/user-attachments/assets/3292aecc-17b6-4af0-9a2e-9ebce94123da" />
+<img width="763" height="630" alt="Statistics" src="https://github.com/user-attachments/assets/51a8a71c-f9fb-4c65-a31e-d9ee4bc8f40e" />
