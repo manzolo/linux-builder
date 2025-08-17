@@ -1,4 +1,4 @@
 build/
 linux-*/
 busybox-*/
-
+config/manzolo.conf
