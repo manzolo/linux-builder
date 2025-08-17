@@ -1,7 +1,28 @@
-# Compile kernel
+# compile_kernel()
+# Add this new function to your script
+clean_build_dir() {
+    print_warning "A different kernel version was previously configured in this build directory."
+    if ask_yes_no "Do you want to clean the build directory now? This is highly recommended."; then
+        print_step "Cleaning build directory..."
+        make O="$KERNEL_BUILD_DIR" clean > /dev/null
+        if [[ $? -eq 0 ]]; then
+            print_success "Build directory cleaned successfully."
+        else
+            print_error "Failed to clean the build directory. Please check permissions."
+            return 1
+        fi
+    else
+        print_info "Skipping clean-up. Compilation may fail due to leftover files."
+        read -p "Press ENTER to continue anyway..."
+    fi
+}
+# End of new function
+#--------------------------------------------------------------------------------
+# compile_kernel()
 compile_kernel() {
     print_header "Compiling Linux Kernel"
-    
+
+    # Check if a .config file exists
     if [[ ! -f "$KERNEL_BUILD_DIR/.config" ]]; then
         print_error "Kernel not configured. Please configure kernel first."
         read -p "Press ENTER to continue..."
@@ -9,7 +30,34 @@ compile_kernel() {
     fi
     
     cd "$KERNEL_SOURCE_DIR" || return 1
-    
+
+    # Check for previous build and clean if necessary
+    local last_build_version_file="$KERNEL_BUILD_DIR/.kernel_version_configured"
+    if [[ -f "$last_build_version_file" ]]; then
+        local last_build_version=$(cat "$last_build_version_file")
+        if [[ "$last_build_version" != "$KERNEL_VERSION" ]]; then
+            clean_build_dir
+        fi
+    fi
+
+    # Check kernel version for compatibility
+    local kernel_major=$(echo "$KERNEL_VERSION" | cut -d. -f1)
+    local kernel_minor=$(echo "$KERNEL_VERSION" | cut -d. -f2)
+
+    # Version-specific adjustments
+    if [[ "$kernel_major" -ge 6 && "$kernel_minor" -ge 10 ]]; then
+        print_warning "Using kernel 6.10+ - applying compatibility adjustments"
+        
+        # Check for removed options in .config
+        sed -i '/CONFIG_DEBUG_FS/d' "$KERNEL_BUILD_DIR/.config"
+        sed -i '/CONFIG_KGDB/d' "$KERNEL_BUILD_DIR/.config"
+        sed -i '/CONFIG_MAGIC_SYSRQ/d' "$KERNEL_BUILD_DIR/.config"
+        
+        # Add new required options for 6.10+
+        echo "CONFIG_DEBUG_KERNEL=y" >> "$KERNEL_BUILD_DIR/.config"
+        echo "CONFIG_DEBUG_INFO=y" >> "$KERNEL_BUILD_DIR/.config"
+    fi
+
     # Check memory and disk space
     if ! check_memory 2048; then
         print_warning "Low memory detected. Compilation may be slow."
@@ -21,7 +69,7 @@ compile_kernel() {
     if ! check_disk_space 3; then
         return 1
     fi
-    
+
     local cores=$(nproc)
     local start_time=$(date +%s)
     
@@ -34,25 +82,14 @@ compile_kernel() {
     # Start performance monitoring
     monitor_performance 3600 30 &
     local monitor_pid=$!
-    
+
     # Compile kernel with progress indication
-    {
-        echo "Kernel compilation started at $(date)"
-        echo "Version: $KERNEL_VERSION"
-        echo "Architecture: $KERNEL_ARCH"
-        echo "Parallel jobs: $cores"
-        echo "========================================"
-    } >> "$LOG_FILE"
+    print_info "See detailed log in $LOG_FILE"
     
-    if make -j"$cores" O="$KERNEL_BUILD_DIR" 2>&1 | tee -a "$LOG_FILE" | \
-       stdbuf -o0 grep -E "(CC|LD|OBJCOPY)" | \
-       while read line; do
-           echo -ne "\r${CYAN}Compiling: ${line:0:60}...${NC}\033[K"
-       done; then
-        
-        echo -ne "\r\033[K" # Pulisce la riga finale
+    if make -j"$cores" O="$KERNEL_BUILD_DIR" 2>&1 | tee -a "$LOG_FILE" | grep -E --line-buffered "(CC|LD|OBJCOPY)"; then
+        echo
         print_success "Kernel compiled successfully!"
-        
+
         # Copy kernel image
         if [[ -f "$KERNEL_BUILD_DIR/arch/x86/boot/bzImage" ]]; then
             cp "$KERNEL_BUILD_DIR/arch/x86/boot/bzImage" "$BUILD_DIR/"
@@ -62,63 +99,72 @@ compile_kernel() {
             print_error "Kernel image not found after compilation"
             return 1
         fi
-        
     else
         echo
         print_error "Kernel compilation failed!"
         print_info "Check $LOG_FILE for detailed error information"
         return 1
     fi
-    
-    # Stop performance monitoring
+
+    # Stop performance monitoring and wait for it to finish
     kill $monitor_pid 2>/dev/null || true
-    
+    wait $monitor_pid 2>/dev/null
+
     local end_time=$(date +%s)
     local duration=$((end_time - start_time))
     local minutes=$((duration / 60))
     local seconds=$((duration % 60))
-    
+
     print_success "Compilation completed in ${minutes}m ${seconds}s"
-    
+
     cd "$CUR_DIR" || return 1
     read -p "Press ENTER to continue..."
 }
 
-# Create default presets
+# create_default_presets()
 create_default_presets() {
     local presets_dir="$CONFIG_DIR/presets"
     
-    # Minimal preset
-    if [[ ! -f "$presets_dir/minimal.config" ]]; then
-        cat > "$presets_dir/minimal.config" << 'EOF'
-# Minimal kernel configuration for embedded systems
-CONFIG_64BIT=y
-CONFIG_X86_64=y
-CONFIG_SMP=n
-CONFIG_MODULES=n
-CONFIG_BLOCK=y
-CONFIG_TTY=y
-CONFIG_SERIAL_8250=y
-CONFIG_SERIAL_8250_CONSOLE=y
-CONFIG_EXT4_FS=y
-CONFIG_PROC_FS=y
-CONFIG_SYSFS=y
-CONFIG_DEVTMPFS=y
-CONFIG_PRINTK=y
-# Disable graphics
-CONFIG_VT=n
-CONFIG_DRM=n
-CONFIG_FB=n
-# Disable audio
-CONFIG_SOUND=n
-# Disable USB
-CONFIG_USB=n
-# Disable networking
-CONFIG_NET=n
+    # Helper function to add version-specific options
+    add_version_specific_options() {
+        local config_file="$1"
+        local kernel_major="$2"
+        local kernel_minor="$3"
+        
+        if [[ "$kernel_major" -ge 6 && "$kernel_minor" -ge 10 ]]; then
+            cat >> "$config_file" << 'EOF'
+# 6.10+ specific options
+CONFIG_DEBUG_BOOT_PARAMS=y
+CONFIG_PAHOLE_HAS_SPLIT_BTF=y
+CONFIG_DEBUG_INFO_BTF=y
 EOF
-    fi
-    
-    # Desktop preset
+        else
+            cat >> "$config_file" << 'EOF'
+# Legacy options for pre-6.10 kernels
+CONFIG_DEBUG_FS=y
+CONFIG_KGDB=y
+CONFIG_MAGIC_SYSRQ=y
+EOF
+        fi
+    }
+
+    # Helper function to update presets for new kernel version
+    update_presets_for_version() {
+        local current_major="$1"
+        local current_minor="$2"
+        
+        for preset in "$presets_dir"/*.config; do
+            # Remove old version-specific options using a single sed command
+            sed -i -E '/# (6.10+|Legacy) options|CONFIG_DEBUG_BOOT_PARAMS|CONFIG_PAHOLE_HAS_SPLIT_BTF|CONFIG_DEBUG_INFO_BTF|CONFIG_DEBUG_FS|CONFIG_KGDB|CONFIG_MAGIC_SYSRQ/d' "$preset"
+            
+            # Add new version-specific options
+            add_version_specific_options "$preset" "$current_major" "$current_minor"
+        done
+    }
+
+    mkdir -p "$presets_dir"
+
+    # Create presets only if they don't exist
     if [[ ! -f "$presets_dir/desktop.config" ]]; then
         cat > "$presets_dir/desktop.config" << 'EOF'
 # Desktop kernel configuration
@@ -263,4 +309,26 @@ CONFIG_HID_GENERIC=y
 CONFIG_USB_HID=y
 EOF
     fi
+
+    # Check if we need to update presets
+    if [[ -f "$presets_dir/version.info" ]]; then
+        local last_major=$(awk -F. '{print $1}' "$presets_dir/version.info")
+        local last_minor=$(awk -F. '{print $2}' "$presets_dir/version.info")
+        local current_major=$(echo "$KERNEL_VERSION" | cut -d. -f1)
+        local current_minor=$(echo "$KERNEL_VERSION" | cut -d. -f2)
+
+        if [[ "$last_major" -ne "$current_major" ]] || [[ "$last_minor" -ne "$current_minor" ]]; then
+            print_warning "Kernel version changed from $last_major.$last_minor to $current_major.$current_minor - updating presets"
+            update_presets_for_version "$current_major" "$current_minor"
+        fi
+    else
+        # If version file doesn't exist, update all presets to current version
+        local current_major=$(echo "$KERNEL_VERSION" | cut -d. -f1)
+        local current_minor=$(echo "$KERNEL_VERSION" | cut -d. -f2)
+        print_info "No version info found, applying current kernel version options to presets."
+        update_presets_for_version "$current_major" "$current_minor"
+    fi
+    
+    # Save current version info
+    echo "$KERNEL_VERSION" > "$presets_dir/version.info"
 }

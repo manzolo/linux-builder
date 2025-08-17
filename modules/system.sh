@@ -26,6 +26,8 @@ check_prerequisites_interactive() {
         "gzip:Compression utility"
         "cpio:Archive utility"
         "git:Version control system"
+        "pahole:Tool for generating BTF debug information"
+        "libbpf-dev:BPF library for modern kernel features"
     )
     
     print_step "Checking installed packages..."
