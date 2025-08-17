@@ -89,16 +89,40 @@ main_menu() {
 }
 
 show_main_menu_header() {
+    # Larghezza fissa della riga interna (tra i caratteri `│` e `│`)
+    local width=76
+    
+    # Variabili da stampare
+    local kernel_info="Kernel: $KERNEL_VERSION"
+    local busybox_info="BusyBox: $BUSYBOX_VERSION"
+    local arch_info="Arch: $KERNEL_ARCH"
+    local build_dir_info="Build Dir: $BUILD_DIR"
+    
+    # Prima riga: distribuisce kernel_info, busybox_info, arch_info con spaziatura equilibrata
+    # Calcoliamo lo spazio disponibile per ogni sezione (dividendo in 3 parti uguali)
+    local section_width=$((width / 3))
+    local remaining=$((width % 3))
+    
+    # Formatta ogni sezione centrata nel suo spazio
+    local kernel_section=$(printf "%-${section_width}s" "$kernel_info")
+    local busybox_section=$(printf "%-${section_width}s" "$busybox_info")
+    local arch_section=$(printf "%-$((section_width + remaining))s" "$arch_info")
+    
+    # Combina le sezioni per creare la prima riga
+    local first_line="${kernel_section}${busybox_section}${arch_section}"
+    
+    # Seconda riga: build_dir_info allineato a sinistra
+    local second_line=$(printf "%-76s" "$build_dir_info")
+    
     cat << EOF
-    ╔══════════════════════════════════════════════════════════════════════════════╗
-    ║                           🐧 MANZOLO LINUX BUILDER                           ║
-    ║                                  Main Menu                                   ║
-    ╚══════════════════════════════════════════════════════════════════════════════╝
-
+    ╔═════════════════════════════════════════════════════════════════════════════╗
+    ║                       🐧 MANZOLO LINUX BUILDER                              ║
+    ║                                 Main Menu                                   ║
+    ╚═════════════════════════════════════════════════════════════════════════════╝
     📊 Current Status:
     ┌─────────────────────────────────────────────────────────────────────────────┐
-    │ Kernel: $(printf "%-15s" "$KERNEL_VERSION") │ BusyBox: $(printf "%-15s" "$BUSYBOX_VERSION") │ Arch: $(printf "%-10s" "$KERNEL_ARCH") │
-    │ Build Dir: $(printf "%-20s" "$BUILD_DIR")                                   │
+    │ $first_line│
+    │ $second_line│
     └─────────────────────────────────────────────────────────────────────────────┘
 EOF
 }
