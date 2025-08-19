@@ -26,6 +26,8 @@ cleanup_on_exit() {
 main() {
     # Initialize
     init_environment
+    check_dependencies flex bison build-essential libelf-dev libssl-dev xorriso grub-pc-bin mtools
+
     
     # Check system compatibility
     if ! command -v apt &> /dev/null; then
