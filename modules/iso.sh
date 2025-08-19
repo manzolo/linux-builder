@@ -43,13 +43,6 @@ menuentry "Manzolo Linux" {
 }
 EOF
 
-    # Check for `grub-mkrescue`
-    if ! command -v grub-mkrescue &> /dev/null; then
-        print_error "grub-mkrescue not found. Please install grub-pc-bin and xorriso."
-        print_info "Example: sudo apt install grub-pc-bin xorriso"
-        return 1
-    fi
-
     local iso_label="${ISO_LABEL:-MANZOLO_LINUX}"
     local iso_file="$BUILD_DIR/${iso_label// /-}.iso"
 

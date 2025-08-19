@@ -385,3 +385,32 @@ stop_performance_monitor() {
         print_warning "No performance monitor PID file found"
     fi
 }
+
+
+check_dependencies() {
+    local args=("$@")
+    local missing=()
+
+    for name in "${args[@]}"; do
+        if dpkg -s "$name" &>/dev/null; then
+            print_success "$name is installed."
+        elif command -v "$name" &>/dev/null; then
+            print_success "$name command is available."
+        else
+            print_warning "$name is missing."
+            missing+=("$name")
+        fi
+    done
+
+    if [[ ${#missing[@]} -eq 0 ]]; then
+        print_success "All dependencies fulfilled."
+    else
+        print_warning "Installing missing dependencies: ${missing[*]}"
+        sudo apt update
+        sudo apt install -y "${missing[@]}" || {
+            print_warning "Some dependencies could not be installed."
+            return 1
+        }
+    fi
+}
+
